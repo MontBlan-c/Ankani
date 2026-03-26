@@ -658,37 +658,23 @@ input[type="text"]:focus, textarea:focus {
   font-size: 0.95rem;
 }
 
-.srs-buttons {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-
-.srs-btn {
+.srs-info {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 14px 8px;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition);
-  font-family: inherit;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
 }
-.srs-btn:hover { transform: translateY(-2px); }
 
-.srs-label { font-size: 0.85rem; font-weight: 700; }
-.srs-time { font-size: 0.7rem; opacity: 0.7; }
+.srs-next-review {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
 
-.srs-again { background: rgba(231,76,60,0.2); color: var(--danger); }
-.srs-again:hover { background: rgba(231,76,60,0.3); }
-.srs-hard { background: rgba(243,156,18,0.2); color: var(--warning); }
-.srs-hard:hover { background: rgba(243,156,18,0.3); }
-.srs-good { background: rgba(0,170,255,0.2); color: var(--accent); }
-.srs-good:hover { background: rgba(0,170,255,0.3); }
-.srs-easy { background: rgba(46,204,113,0.2); color: var(--success); }
-.srs-easy:hover { background: rgba(46,204,113,0.3); }
+.next-btn {
+  width: 100%;
+  justify-content: center;
+}
 
 /* ===== Modal ===== */
 .modal {

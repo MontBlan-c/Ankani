@@ -202,24 +202,8 @@
         <div id="result-area" class="result-area" style="display:none">
           <div class="result-message" id="result-message"></div>
           <div class="correct-answer" id="correct-answer-display"></div>
-          <div class="srs-buttons" id="srs-buttons">
-            <button class="srs-btn srs-again" onclick="gradeCard(0)">
-              <span class="srs-label">Again</span>
-              <span class="srs-time" id="srs-time-0"></span>
-            </button>
-            <button class="srs-btn srs-hard" onclick="gradeCard(1)">
-              <span class="srs-label">Hard</span>
-              <span class="srs-time" id="srs-time-1"></span>
-            </button>
-            <button class="srs-btn srs-good" onclick="gradeCard(2)">
-              <span class="srs-label">Good</span>
-              <span class="srs-time" id="srs-time-2"></span>
-            </button>
-            <button class="srs-btn srs-easy" onclick="gradeCard(3)">
-              <span class="srs-label">Easy</span>
-              <span class="srs-time" id="srs-time-3"></span>
-            </button>
-          </div>
+          <div class="srs-info" id="srs-info"></div>
+          <button class="btn btn-primary btn-large next-btn" onclick="nextCard()">Next</button>
         </div>
       </div>
     </section>

@@ -584,7 +584,8 @@ function checkFreeAnswer() {
 }
 
 function showResult(correct) {
-  const card = state.quiz.cards[state.quiz.currentIndex];
+  const q = state.quiz;
+  const card = q.cards[q.currentIndex];
   const resultArea = document.getElementById('result-area');
   const resultMsg = document.getElementById('result-message');
   const correctDisplay = document.getElementById('correct-answer-display');
@@ -593,19 +594,8 @@ function showResult(correct) {
   resultMsg.className = 'result-message ' + (correct ? 'correct' : 'wrong');
   correctDisplay.textContent = correct ? '' : `Correct answer: ${card.back}`;
 
-  // Show SRS interval previews
-  const previews = SRS.previewIntervals(card.srs.stage);
-  document.getElementById('srs-time-0').textContent = previews[0];
-  document.getElementById('srs-time-1').textContent = previews[1];
-  document.getElementById('srs-time-2').textContent = previews[2];
-  document.getElementById('srs-time-3').textContent = previews[3];
-
-  resultArea.style.display = '';
-}
-
-function gradeCard(grade) {
-  const q = state.quiz;
-  const card = q.cards[q.currentIndex];
+  // Auto-grade: correct = Good (2), incorrect = Again (0) — like WaniKani
+  const grade = correct ? 2 : 0;
 
   // Find and update actual card in deck
   const deck = state.decks.find(d => d.id === q.deckId);
@@ -613,13 +603,23 @@ function gradeCard(grade) {
     const actualCard = deck.cards.find(c => c.id === card.id);
     if (actualCard) {
       SRS.reviewCard(actualCard, grade);
+      // Show SRS stage info
+      const stageName = SRS.STAGE_NAMES[actualCard.srs.stage] || 'New';
+      const stageClass = SRS.STAGE_CLASSES[actualCard.srs.stage] || 'new';
+      const nextTime = actualCard.srs.stage >= 9 ? 'Burned!' : SRS.formatTimeUntil(actualCard.srs.nextReview);
+      document.getElementById('srs-info').innerHTML = `
+        <span class="srs-stage-badge ${stageClass}">${stageName}</span>
+        <span class="srs-next-review">Next review: ${nextTime}</span>
+      `;
     }
   }
 
   saveState();
+  resultArea.style.display = '';
+}
 
-  // Next card
-  q.currentIndex++;
+function nextCard() {
+  state.quiz.currentIndex++;
   showQuizCard();
 }
 
@@ -635,25 +635,25 @@ function endReview() {
 
 // --- Keyboard shortcuts ---
 document.addEventListener('keydown', e => {
-  if (state.currentView === 'quiz' && state.quiz.answered) {
-    const resultArea = document.getElementById('result-area');
-    if (resultArea.style.display !== 'none') {
-      switch (e.key) {
-        case '1': gradeCard(0); break;
-        case '2': gradeCard(1); break;
-        case '3': gradeCard(2); break;
-        case '4': gradeCard(3); break;
-      }
-    }
+  if (state.currentView !== 'quiz') {
+    if (e.key === 'Escape') closeModal();
+    return;
   }
-  // Enter to check free answer
-  if (state.currentView === 'quiz' && !state.quiz.answered && e.key === 'Enter') {
+
+  if (state.quiz.answered) {
+    // After answering, Enter or Space goes to next card
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      nextCard();
+    }
+  } else if (e.key === 'Enter') {
+    // Before answering, Enter submits free answer
     const freeArea = document.getElementById('free-area');
     if (freeArea.style.display !== 'none') {
       checkFreeAnswer();
     }
   }
-  // Escape to close modal
+
   if (e.key === 'Escape') closeModal();
 });
 
