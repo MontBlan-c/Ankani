@@ -1,0 +1,8 @@
+{
+  "name": "ankani",
+  "version": "1.0.0",
+  "description": "Anki x WaniKani quiz maker with spaced repetition",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
