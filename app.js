@@ -141,7 +141,7 @@ function renderSRSPiles() {
         ${pile.cards.length === 0 ? '<div class="srs-pile-empty">No cards at this stage</div>' :
           pile.cards.map(({ card, deckName, deckColor, deckId }) => {
             const stageName = SRS.STAGE_NAMES[card.srs.stage] || 'New';
-            const nextText = card.srs.stage >= 9 ? 'Burned' : SRS.formatTimeUntil(card.srs.nextReview);
+            const nextText = SRS.formatTimeUntil(card.srs.nextReview);
             return `
               <div class="srs-pile-card" onclick="state.currentDeckId='${deckId}'; showCardInfo('${card.id}')">
                 <div class="srs-pile-card-color" style="background:${deckColor}"></div>
@@ -591,7 +591,7 @@ function renderDeckDetail() {
   const list = document.getElementById('card-list');
   list.innerHTML = deck.cards.map(card => {
     const stageClass = SRS.getStageCategory(card.srs.stage);
-    const nextText = card.srs.stage >= 9 ? 'Burned' : SRS.formatTimeUntil(card.srs.nextReview);
+    const nextText = SRS.formatTimeUntil(card.srs.nextReview);
     return `
       <div class="card-list-item" onclick="showCardInfo('${card.id}')">
         <div class="card-list-srs ${stageClass}"></div>
@@ -626,7 +626,7 @@ function showCardInfo(cardId) {
   const accuracy = card.srs.totalReviews > 0
     ? Math.round((card.srs.correctCount / card.srs.totalReviews) * 100)
     : 0;
-  const nextReview = card.srs.stage >= 9 ? 'Burned (complete!)' : SRS.formatTimeUntil(card.srs.nextReview);
+  const nextReview = SRS.formatTimeUntil(card.srs.nextReview);
   const lastReview = card.srs.lastReview ? new Date(card.srs.lastReview).toLocaleDateString() : 'Never';
 
   document.getElementById('modal-body').innerHTML = `
@@ -855,7 +855,7 @@ function showResult(correct) {
       SRS.reviewCard(actualCard, grade);
       stageName = SRS.STAGE_NAMES[actualCard.srs.stage] || 'New';
       stageClass = SRS.STAGE_CLASSES[actualCard.srs.stage] || 'new';
-      nextTime = actualCard.srs.stage >= 9 ? 'Burned!' : SRS.formatTimeUntil(actualCard.srs.nextReview);
+      nextTime = SRS.formatTimeUntil(actualCard.srs.nextReview);
     }
   }
 

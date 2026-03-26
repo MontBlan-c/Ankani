@@ -13,6 +13,7 @@ const SRS = {
     14 * 86400000,  // 6: Guru 2 → 2 weeks
     30 * 86400000,  // 7: Master → 1 month
     120 * 86400000, // 8: Enlightened → 4 months
+    120 * 86400000, // 9: Burned → 4 months (comes back for reinforcement)
   ],
 
   STAGE_NAMES: [
@@ -57,7 +58,6 @@ const SRS = {
   },
 
   getIntervalMs(stage) {
-    if (stage >= 9) return Infinity; // Burned - never review again
     return this.INTERVALS[stage] || this.INTERVALS[this.INTERVALS.length - 1];
   },
 
@@ -65,7 +65,6 @@ const SRS = {
   previewIntervals(currentStage) {
     return [0, 1, 2, 3].map(grade => {
       const nextStage = this.getNextInterval(currentStage, grade);
-      if (nextStage >= 9) return 'Burned!';
       return this.formatInterval(this.INTERVALS[nextStage] || 0);
     });
   },
@@ -95,7 +94,6 @@ const SRS = {
 
   isDue(card) {
     if (!card.srs.nextReview) return true; // New card
-    if (card.srs.nextReview === Infinity) return false; // Burned
     return Date.now() >= card.srs.nextReview;
   },
 
@@ -118,14 +116,9 @@ const SRS = {
     if (grade >= 2) card.srs.correctCount++;
     card.srs.lastReview = Date.now();
 
-    if (nextStage >= 9) {
-      card.srs.nextReview = Infinity; // Burned
-    } else {
-      // Even at stage 0 after a wrong answer, schedule for Apprentice 1 interval (4h)
-      // so the card doesn't stay perpetually "due now"
-      const interval = nextStage === 0 ? this.INTERVALS[1] : this.getIntervalMs(nextStage);
-      card.srs.nextReview = Date.now() + interval;
-    }
+    // Even at stage 0 after a wrong answer, schedule for Apprentice 1 interval (4h)
+    const interval = nextStage === 0 ? this.INTERVALS[1] : this.getIntervalMs(nextStage);
+    card.srs.nextReview = Date.now() + interval;
 
     return card;
   }
