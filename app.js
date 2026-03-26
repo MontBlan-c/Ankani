@@ -149,7 +149,7 @@ function initCreateForm(deckId) {
   const container = document.getElementById('card-rows');
   container.innerHTML = '';
   if (deck && deck.cards.length > 0) {
-    deck.cards.forEach((card, i) => addCardRow(card.front, card.back));
+    deck.cards.forEach((card, i) => addCardRow(card.front, card.back, card.wrongAnswers || []));
   } else {
     addCardRow();
     addCardRow();
@@ -177,26 +177,55 @@ function setQuizMode(mode) {
   });
 }
 
-function addCardRow(front = '', back = '') {
+function addCardRow(front = '', back = '', wrongAnswers = []) {
   const container = document.getElementById('card-rows');
   const num = container.children.length + 1;
   const row = document.createElement('div');
   row.className = 'card-row';
+  const wrongStr = wrongAnswers.map(w => esc(w)).join(',');
   row.innerHTML = `
     <span class="card-row-num">${num}</span>
-    <input type="text" class="card-front" placeholder="Front (question)" value="${esc(front)}">
-    <input type="text" class="card-back" placeholder="Back (answer)" value="${esc(back)}">
-    <button class="card-row-delete" onclick="this.parentElement.remove(); renumberCards();">&times;</button>
+    <div class="card-row-fields">
+      <div class="card-row-main">
+        <input type="text" class="card-front" placeholder="Front (question)" value="${esc(front)}">
+        <input type="text" class="card-back" placeholder="Back (correct answer)" value="${esc(back)}">
+        <button class="card-row-delete" onclick="this.closest('.card-row').remove(); renumberCards();">&times;</button>
+      </div>
+      <div class="card-row-wrong">
+        <button class="btn-add-wrong" onclick="addWrongAnswer(this)" title="Add a wrong answer choice">+ Wrong Answer</button>
+        <div class="wrong-answers-list"></div>
+      </div>
+    </div>
   `;
   container.appendChild(row);
+  // Add existing wrong answers
+  const wrongList = row.querySelector('.wrong-answers-list');
+  wrongAnswers.forEach(w => insertWrongInput(wrongList, w));
   if (!front) row.querySelector('.card-front').focus();
-  // Allow pressing Enter on back field to add new row
+  // Allow pressing Enter on back field to add wrong answer or new row
   row.querySelector('.card-back').addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       addCardRow();
     }
   });
+}
+
+function addWrongAnswer(btn) {
+  const wrongList = btn.closest('.card-row-wrong').querySelector('.wrong-answers-list');
+  insertWrongInput(wrongList, '');
+}
+
+function insertWrongInput(container, value) {
+  const div = document.createElement('div');
+  div.className = 'wrong-answer-row';
+  div.innerHTML = `
+    <span class="wrong-label">Wrong:</span>
+    <input type="text" class="card-wrong" placeholder="Wrong answer choice" value="${esc(value)}">
+    <button class="card-row-delete" onclick="this.parentElement.remove();">&times;</button>
+  `;
+  container.appendChild(div);
+  if (!value) div.querySelector('.card-wrong').focus();
 }
 
 function renumberCards() {
@@ -216,7 +245,11 @@ function parseBulkAdd() {
   const lines = text.split('\n').filter(l => l.trim());
   lines.forEach(line => {
     const parts = line.split('|').map(s => s.trim());
-    if (parts.length >= 2) {
+    if (parts.length >= 3) {
+      // front | correct | wrong1; wrong2; wrong3
+      const wrongAnswers = parts.slice(2).join('|').split(';').map(s => s.trim()).filter(Boolean);
+      addCardRow(parts[0], parts[1], wrongAnswers);
+    } else if (parts.length >= 2) {
       addCardRow(parts[0], parts[1]);
     } else if (parts[0]) {
       addCardRow(parts[0], '');
@@ -241,8 +274,10 @@ function saveDeck() {
   rows.forEach(row => {
     const front = row.querySelector('.card-front').value.trim();
     const back = row.querySelector('.card-back').value.trim();
+    const wrongInputs = row.querySelectorAll('.card-wrong');
+    const wrongAnswers = Array.from(wrongInputs).map(i => i.value.trim()).filter(Boolean);
     if (front && back) {
-      cards.push({ front, back });
+      cards.push({ front, back, wrongAnswers });
     }
   });
 
@@ -260,9 +295,11 @@ function saveDeck() {
       deck.cards = cards.map(c => {
         const key = c.front + '|||' + c.back;
         if (existingMap.has(key)) {
-          return existingMap.get(key);
+          const existing = existingMap.get(key);
+          existing.wrongAnswers = c.wrongAnswers || [];
+          return existing;
         }
-        return { id: genId(), front: c.front, back: c.back, srs: SRS.newCardData() };
+        return { id: genId(), front: c.front, back: c.back, wrongAnswers: c.wrongAnswers || [], srs: SRS.newCardData() };
       });
     }
   } else {
@@ -277,6 +314,7 @@ function saveDeck() {
         id: genId(),
         front: c.front,
         back: c.back,
+        wrongAnswers: c.wrongAnswers || [],
         srs: SRS.newCardData(),
       })),
       createdAt: Date.now(),
@@ -474,18 +512,26 @@ function getQuizModeForCard(deck) {
 function renderMCQOptions(card, deck) {
   const container = document.getElementById('mcq-options');
 
-  // Get wrong answers from same deck
-  const otherAnswers = deck.cards
-    .filter(c => c.id !== card.id)
-    .map(c => c.back);
+  let wrongChoices = [];
 
-  // Pick 3 random wrong answers (or fewer if not enough cards)
-  const shuffledWrong = otherAnswers.sort(() => Math.random() - 0.5).slice(0, 3);
+  // Use user-provided wrong answers first
+  if (card.wrongAnswers && card.wrongAnswers.length > 0) {
+    wrongChoices = [...card.wrongAnswers];
+  }
+
+  // If we still need more wrong answers (want 3 total), pull from other cards in deck
+  if (wrongChoices.length < 3) {
+    const otherAnswers = deck.cards
+      .filter(c => c.id !== card.id && !wrongChoices.includes(c.back) && c.back !== card.back)
+      .map(c => c.back)
+      .sort(() => Math.random() - 0.5);
+    wrongChoices.push(...otherAnswers.slice(0, 3 - wrongChoices.length));
+  }
 
   // Build options array with correct answer
   const options = [
     { text: card.back, correct: true },
-    ...shuffledWrong.map(t => ({ text: t, correct: false }))
+    ...wrongChoices.map(t => ({ text: t, correct: false }))
   ].sort(() => Math.random() - 0.5);
 
   container.innerHTML = options.map((opt, i) => `
