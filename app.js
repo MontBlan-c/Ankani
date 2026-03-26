@@ -207,12 +207,15 @@ function startAllReviews() {
 
   const shuffled = allDue.sort(() => Math.random() - 0.5);
 
+  const cards = shuffled.map(item => item.card);
   state.quiz = {
     deckId: null, // multi-deck review
     multiDeck: true,
     cardDeckMap: Object.fromEntries(shuffled.map(item => [item.card.id, item.deckId])),
-    cards: shuffled.map(item => item.card),
-    currentIndex: 0,
+    queue: [...cards],
+    totalUnique: cards.length,
+    completed: 0,
+    currentCard: null,
     answered: false,
     wasCorrect: false,
     totalAnswered: 0,
@@ -244,8 +247,10 @@ function reviewSingleCard(deckId, cardId) {
 
   state.quiz = {
     deckId: deckId,
-    cards: [card],
-    currentIndex: 0,
+    queue: [card],
+    totalUnique: 1,
+    completed: 0,
+    currentCard: null,
     answered: false,
     wasCorrect: false,
     totalAnswered: 0,
@@ -608,8 +613,10 @@ function startReview(returnTo) {
 
   state.quiz = {
     deckId: deck.id,
-    cards: shuffled,
-    currentIndex: 0,
+    queue: [...shuffled],       // mutable queue — cards get removed or re-added
+    totalUnique: shuffled.length,
+    completed: 0,               // unique cards answered correctly
+    currentCard: null,
     answered: false,
     wasCorrect: false,
     totalAnswered: 0,
@@ -623,12 +630,15 @@ function startReview(returnTo) {
 
 function showQuizCard() {
   const q = state.quiz;
-  if (q.currentIndex >= q.cards.length) {
+  if (q.queue.length === 0) {
     endReview();
     return;
   }
 
-  const card = q.cards[q.currentIndex];
+  // Pull the next card from the front of the queue
+  q.currentCard = q.queue.shift();
+  const card = q.currentCard;
+
   // For multi-deck reviews, look up which deck this card belongs to
   const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
   const deck = state.decks.find(d => d.id === deckId);
@@ -636,10 +646,14 @@ function showQuizCard() {
 
   q.answered = false;
 
-  // Update progress
-  const pct = (q.currentIndex / q.cards.length) * 100;
+  // Update progress — completed out of total unique
+  const pct = (q.completed / q.totalUnique) * 100;
   document.getElementById('quiz-progress-fill').style.width = pct + '%';
-  document.getElementById('quiz-progress-text').textContent = `${q.currentIndex + 1} / ${q.cards.length}`;
+  document.getElementById('quiz-progress-text').textContent = `${q.completed} / ${q.totalUnique}`;
+
+  // Remaining indicator
+  const remaining = q.queue.length + 1; // +1 for current card
+  document.getElementById('quiz-remaining').textContent = `${remaining} remaining`;
 
   // Set question
   document.getElementById('quiz-question').textContent = card.front;
@@ -732,7 +746,7 @@ function checkFreeAnswer() {
   if (state.quiz.answered) return;
   state.quiz.answered = true;
 
-  const card = state.quiz.cards[state.quiz.currentIndex];
+  const card = state.quiz.currentCard;
   const input = document.getElementById('free-input');
   const userAnswer = input.value.trim().toLowerCase();
   const correctAnswer = card.back.trim().toLowerCase();
@@ -753,14 +767,10 @@ function checkFreeAnswer() {
 
 function showResult(correct) {
   const q = state.quiz;
-  const card = q.cards[q.currentIndex];
+  const card = q.currentCard;
   const resultArea = document.getElementById('result-area');
   const resultMsg = document.getElementById('result-message');
   const correctDisplay = document.getElementById('correct-answer-display');
-
-  resultMsg.textContent = correct ? 'Correct!' : 'Incorrect';
-  resultMsg.className = 'result-message ' + (correct ? 'correct' : 'wrong');
-  correctDisplay.textContent = correct ? '' : `Correct answer: ${card.back}`;
 
   // Auto-grade: correct = Good (2), incorrect = Again (0) — like WaniKani
   const grade = correct ? 2 : 0;
@@ -768,27 +778,55 @@ function showResult(correct) {
   // Find and update actual card in deck
   const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
   const deck = state.decks.find(d => d.id === deckId);
+  let stageName = '', stageClass = '', nextTime = '';
+
   if (deck) {
     const actualCard = deck.cards.find(c => c.id === card.id);
     if (actualCard) {
       SRS.reviewCard(actualCard, grade);
-      // Show SRS stage info
-      const stageName = SRS.STAGE_NAMES[actualCard.srs.stage] || 'New';
-      const stageClass = SRS.STAGE_CLASSES[actualCard.srs.stage] || 'new';
-      const nextTime = actualCard.srs.stage >= 9 ? 'Burned!' : SRS.formatTimeUntil(actualCard.srs.nextReview);
-      document.getElementById('srs-info').innerHTML = `
-        <span class="srs-stage-badge ${stageClass}">${stageName}</span>
-        <span class="srs-next-review">Next review: ${nextTime}</span>
-      `;
+      stageName = SRS.STAGE_NAMES[actualCard.srs.stage] || 'New';
+      stageClass = SRS.STAGE_CLASSES[actualCard.srs.stage] || 'new';
+      nextTime = actualCard.srs.stage >= 9 ? 'Burned!' : SRS.formatTimeUntil(actualCard.srs.nextReview);
     }
   }
 
+  if (correct) {
+    // Card is done — it disappears and comes back based on SRS interval
+    q.completed++;
+    resultMsg.textContent = 'Correct!';
+    resultMsg.className = 'result-message correct';
+    correctDisplay.textContent = '';
+    document.getElementById('srs-info').innerHTML = `
+      <span class="srs-stage-badge ${stageClass}">${stageName}</span>
+      <span class="srs-next-review">Next review: ${nextTime}</span>
+    `;
+  } else {
+    // Wrong — card goes back into the queue to be reviewed again this session
+    // Insert it a few cards later (not immediately) so you see other cards first
+    const reinsertPos = Math.min(q.queue.length, Math.floor(Math.random() * 4) + 2);
+    q.queue.splice(reinsertPos, 0, card);
+
+    resultMsg.textContent = 'Incorrect';
+    resultMsg.className = 'result-message wrong';
+    correctDisplay.textContent = `Correct answer: ${card.back}`;
+    document.getElementById('srs-info').innerHTML = `
+      <span class="srs-stage-badge ${stageClass}">${stageName}</span>
+      <span class="srs-next-review">This card will appear again this session</span>
+    `;
+  }
+
   saveState();
+  updateReviewBadge();
+
+  // Update progress bar
+  const pct = (q.completed / q.totalUnique) * 100;
+  document.getElementById('quiz-progress-fill').style.width = pct + '%';
+  document.getElementById('quiz-progress-text').textContent = `${q.completed} / ${q.totalUnique}`;
+
   resultArea.style.display = '';
 }
 
 function nextCard() {
-  state.quiz.currentIndex++;
   showQuizCard();
 }
 

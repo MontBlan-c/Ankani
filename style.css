@@ -632,6 +632,12 @@ input[type="text"]:focus, textarea:focus {
   text-align: right;
 }
 
+.quiz-remaining {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .quiz-container {
   max-width: 560px;
   margin: 0 auto;
