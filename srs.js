@@ -120,7 +120,10 @@ const SRS = {
     if (nextStage >= 9) {
       card.srs.nextReview = Infinity; // Burned
     } else {
-      card.srs.nextReview = Date.now() + this.getIntervalMs(nextStage);
+      // Even at stage 0 after a wrong answer, schedule for Apprentice 1 interval (4h)
+      // so the card doesn't stay perpetually "due now"
+      const interval = nextStage === 0 ? this.INTERVALS[1] : this.getIntervalMs(nextStage);
+      card.srs.nextReview = Date.now() + interval;
     }
 
     return card;
