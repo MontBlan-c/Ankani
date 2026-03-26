@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ankani - Smart Quiz Maker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F0CF;</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Navigation -->
+    <nav id="navbar">
+      <div class="nav-left">
+        <h1 class="logo" onclick="navigate('dashboard')">Ankani</h1>
+      </div>
+      <div class="nav-right">
+        <button class="nav-btn" onclick="navigate('dashboard')" data-nav="dashboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-btn" onclick="navigate('decks')" data-nav="decks">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Decks
+        </button>
+        <button class="nav-btn" onclick="navigate('create')" data-nav="create">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Create
+        </button>
+      </div>
+    </nav>
+
+    <!-- Dashboard View -->
+    <section id="view-dashboard" class="view">
+      <div class="dashboard-header">
+        <div class="welcome-section">
+          <h2>Welcome back!</h2>
+          <p class="subtitle">Here's your study progress</p>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card stat-reviews">
+          <div class="stat-number" id="stat-due">0</div>
+          <div class="stat-label">Reviews Due</div>
+        </div>
+        <div class="stat-card stat-learned">
+          <div class="stat-number" id="stat-learned">0</div>
+          <div class="stat-label">Cards Learned</div>
+        </div>
+        <div class="stat-card stat-streak">
+          <div class="stat-number" id="stat-accuracy">0%</div>
+          <div class="stat-label">Accuracy</div>
+        </div>
+        <div class="stat-card stat-total">
+          <div class="stat-number" id="stat-total">0</div>
+          <div class="stat-label">Total Cards</div>
+        </div>
+      </div>
+      <div class="section-header">
+        <h3>Your Decks</h3>
+      </div>
+      <div id="dashboard-decks" class="deck-grid"></div>
+      <div id="empty-state" class="empty-state" style="display:none;">
+        <div class="empty-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <h3>No decks yet</h3>
+        <p>Create your first deck to start learning!</p>
+        <button class="btn btn-primary" onclick="navigate('create')">Create a Deck</button>
+      </div>
+    </section>
+
+    <!-- Decks View -->
+    <section id="view-decks" class="view" style="display:none">
+      <div class="section-header">
+        <h2>All Decks</h2>
+        <button class="btn btn-primary" onclick="navigate('create')">+ New Deck</button>
+      </div>
+      <div id="decks-list" class="deck-grid"></div>
+    </section>
+
+    <!-- Create/Edit View -->
+    <section id="view-create" class="view" style="display:none">
+      <div class="section-header">
+        <h2 id="create-title">Create New Deck</h2>
+      </div>
+      <div class="create-form">
+        <div class="form-group">
+          <label>Deck Name</label>
+          <input type="text" id="deck-name" placeholder="e.g., Japanese Vocabulary" maxlength="50">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="deck-desc" placeholder="What is this deck about?" maxlength="100">
+        </div>
+        <div class="form-group">
+          <label>Color Theme</label>
+          <div class="color-picker" id="color-picker">
+            <button class="color-swatch active" data-color="#00AAFF" style="background:#00AAFF"></button>
+            <button class="color-swatch" data-color="#E91E90" style="background:#E91E90"></button>
+            <button class="color-swatch" data-color="#9B59B6" style="background:#9B59B6"></button>
+            <button class="color-swatch" data-color="#F39C12" style="background:#F39C12"></button>
+            <button class="color-swatch" data-color="#2ECC71" style="background:#2ECC71"></button>
+            <button class="color-swatch" data-color="#E74C3C" style="background:#E74C3C"></button>
+            <button class="color-swatch" data-color="#1ABC9C" style="background:#1ABC9C"></button>
+            <button class="color-swatch" data-color="#E67E22" style="background:#E67E22"></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Default Quiz Mode</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" data-mode="mcq" onclick="setQuizMode('mcq')">Multiple Choice</button>
+            <button class="toggle-btn" data-mode="free" onclick="setQuizMode('free')">Free Answer</button>
+            <button class="toggle-btn" data-mode="both" onclick="setQuizMode('both')">Both</button>
+          </div>
+        </div>
+
+        <div class="cards-section">
+          <div class="section-header">
+            <h3>Cards</h3>
+            <button class="btn btn-secondary" onclick="addCardRow()">+ Add Card</button>
+          </div>
+          <div id="card-rows" class="card-rows"></div>
+          <div class="bulk-add">
+            <button class="btn btn-ghost" onclick="toggleBulkAdd()">Bulk Add (paste multiple)</button>
+            <div id="bulk-add-area" style="display:none">
+              <textarea id="bulk-textarea" placeholder="Paste cards, one per line. Use | to separate front and back.&#10;Example:&#10;dog | いぬ&#10;cat | ねこ&#10;water | みず" rows="6"></textarea>
+              <button class="btn btn-secondary" onclick="parseBulkAdd()">Add Cards</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="navigate('dashboard')">Cancel</button>
+          <button class="btn btn-primary" id="save-deck-btn" onclick="saveDeck()">Save Deck</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Deck Detail View -->
+    <section id="view-deck-detail" class="view" style="display:none">
+      <div class="deck-detail-header" id="deck-detail-header">
+        <button class="btn btn-ghost back-btn" onclick="navigate('dashboard')">← Back</button>
+        <div class="deck-detail-info">
+          <h2 id="detail-deck-name"></h2>
+          <p id="detail-deck-desc" class="subtitle"></p>
+        </div>
+        <div class="deck-detail-actions">
+          <button class="btn btn-secondary" onclick="editCurrentDeck()">Edit</button>
+          <button class="btn btn-danger" onclick="deleteCurrentDeck()">Delete</button>
+        </div>
+      </div>
+      <div class="deck-detail-stats">
+        <div class="detail-stat">
+          <span class="detail-stat-num" id="detail-due">0</span>
+          <span class="detail-stat-label">Due Now</span>
+        </div>
+        <div class="detail-stat">
+          <span class="detail-stat-num" id="detail-new">0</span>
+          <span class="detail-stat-label">New</span>
+        </div>
+        <div class="detail-stat">
+          <span class="detail-stat-num" id="detail-total">0</span>
+          <span class="detail-stat-label">Total</span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-large start-review-btn" id="start-review-btn" onclick="startReview()">
+        Start Review
+      </button>
+      <div class="section-header">
+        <h3>All Cards</h3>
+      </div>
+      <div id="card-list" class="card-list"></div>
+    </section>
+
+    <!-- Quiz/Review View -->
+    <section id="view-quiz" class="view" style="display:none">
+      <div class="quiz-header">
+        <button class="btn btn-ghost" onclick="endReview()">← Exit</button>
+        <div class="quiz-progress">
+          <div class="quiz-progress-bar">
+            <div class="quiz-progress-fill" id="quiz-progress-fill"></div>
+          </div>
+          <span id="quiz-progress-text">0 / 0</span>
+        </div>
+      </div>
+      <div class="quiz-container">
+        <div class="quiz-card" id="quiz-card">
+          <div class="quiz-card-type" id="quiz-card-type">Meaning</div>
+          <div class="quiz-question" id="quiz-question"></div>
+        </div>
+        <!-- MCQ Mode -->
+        <div id="mcq-area" class="answer-area">
+          <div class="mcq-options" id="mcq-options"></div>
+        </div>
+        <!-- Free Answer Mode -->
+        <div id="free-area" class="answer-area" style="display:none">
+          <input type="text" id="free-input" class="free-input" placeholder="Type your answer..." autocomplete="off">
+          <button class="btn btn-primary" id="check-answer-btn" onclick="checkFreeAnswer()">Check</button>
+        </div>
+        <!-- Result -->
+        <div id="result-area" class="result-area" style="display:none">
+          <div class="result-message" id="result-message"></div>
+          <div class="correct-answer" id="correct-answer-display"></div>
+          <div class="srs-buttons" id="srs-buttons">
+            <button class="srs-btn srs-again" onclick="gradeCard(0)">
+              <span class="srs-label">Again</span>
+              <span class="srs-time" id="srs-time-0"></span>
+            </button>
+            <button class="srs-btn srs-hard" onclick="gradeCard(1)">
+              <span class="srs-label">Hard</span>
+              <span class="srs-time" id="srs-time-1"></span>
+            </button>
+            <button class="srs-btn srs-good" onclick="gradeCard(2)">
+              <span class="srs-label">Good</span>
+              <span class="srs-time" id="srs-time-2"></span>
+            </button>
+            <button class="srs-btn srs-easy" onclick="gradeCard(3)">
+              <span class="srs-label">Easy</span>
+              <span class="srs-time" id="srs-time-3"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card Info Modal -->
+    <div id="card-modal" class="modal" style="display:none">
+      <div class="modal-backdrop" onclick="closeModal()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Card Details</h3>
+          <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="srs.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
