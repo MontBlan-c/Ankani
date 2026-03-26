@@ -149,7 +149,7 @@ function initCreateForm(deckId) {
   const container = document.getElementById('card-rows');
   container.innerHTML = '';
   if (deck && deck.cards.length > 0) {
-    deck.cards.forEach((card, i) => addCardRow(card.front, card.back, card.wrongAnswers || []));
+    deck.cards.forEach((card, i) => addCardRow(card.front, card.back, card.wrongAnswers || [], card.quizMode || 'deck'));
   } else {
     addCardRow();
     addCardRow();
@@ -177,12 +177,11 @@ function setQuizMode(mode) {
   });
 }
 
-function addCardRow(front = '', back = '', wrongAnswers = []) {
+function addCardRow(front = '', back = '', wrongAnswers = [], cardMode = 'deck') {
   const container = document.getElementById('card-rows');
   const num = container.children.length + 1;
   const row = document.createElement('div');
   row.className = 'card-row';
-  const wrongStr = wrongAnswers.map(w => esc(w)).join(',');
   row.innerHTML = `
     <span class="card-row-num">${num}</span>
     <div class="card-row-fields">
@@ -191,9 +190,16 @@ function addCardRow(front = '', back = '', wrongAnswers = []) {
         <input type="text" class="card-back" placeholder="Back (correct answer)" value="${esc(back)}">
         <button class="card-row-delete" onclick="this.closest('.card-row').remove(); renumberCards();">&times;</button>
       </div>
-      <div class="card-row-wrong">
-        <button class="btn-add-wrong" onclick="addWrongAnswer(this)" title="Add a wrong answer choice">+ Wrong Answer</button>
-        <div class="wrong-answers-list"></div>
+      <div class="card-row-options">
+        <div class="card-mode-toggle">
+          <button class="card-mode-btn ${cardMode === 'deck' ? 'active' : ''}" data-cardmode="deck" onclick="setCardMode(this)">Deck Default</button>
+          <button class="card-mode-btn ${cardMode === 'mcq' ? 'active' : ''}" data-cardmode="mcq" onclick="setCardMode(this)">MCQ</button>
+          <button class="card-mode-btn ${cardMode === 'free' ? 'active' : ''}" data-cardmode="free" onclick="setCardMode(this)">Free</button>
+        </div>
+        <div class="card-row-wrong" ${cardMode === 'free' ? 'style="display:none"' : ''}>
+          <button class="btn-add-wrong" onclick="addWrongAnswer(this)" title="Add a wrong answer choice">+ Wrong Answer</button>
+          <div class="wrong-answers-list"></div>
+        </div>
       </div>
     </div>
   `;
@@ -202,13 +208,25 @@ function addCardRow(front = '', back = '', wrongAnswers = []) {
   const wrongList = row.querySelector('.wrong-answers-list');
   wrongAnswers.forEach(w => insertWrongInput(wrongList, w));
   if (!front) row.querySelector('.card-front').focus();
-  // Allow pressing Enter on back field to add wrong answer or new row
   row.querySelector('.card-back').addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       addCardRow();
     }
   });
+}
+
+function setCardMode(btn) {
+  const row = btn.closest('.card-row');
+  row.querySelectorAll('.card-mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Hide/show wrong answers section based on mode
+  const wrongSection = row.querySelector('.card-row-wrong');
+  if (btn.dataset.cardmode === 'free') {
+    wrongSection.style.display = 'none';
+  } else {
+    wrongSection.style.display = '';
+  }
 }
 
 function addWrongAnswer(btn) {
@@ -276,8 +294,10 @@ function saveDeck() {
     const back = row.querySelector('.card-back').value.trim();
     const wrongInputs = row.querySelectorAll('.card-wrong');
     const wrongAnswers = Array.from(wrongInputs).map(i => i.value.trim()).filter(Boolean);
+    const activeMode = row.querySelector('.card-mode-btn.active');
+    const cardMode = activeMode ? activeMode.dataset.cardmode : 'deck';
     if (front && back) {
-      cards.push({ front, back, wrongAnswers });
+      cards.push({ front, back, wrongAnswers, quizMode: cardMode });
     }
   });
 
@@ -297,9 +317,10 @@ function saveDeck() {
         if (existingMap.has(key)) {
           const existing = existingMap.get(key);
           existing.wrongAnswers = c.wrongAnswers || [];
+          existing.quizMode = c.quizMode || 'deck';
           return existing;
         }
-        return { id: genId(), front: c.front, back: c.back, wrongAnswers: c.wrongAnswers || [], srs: SRS.newCardData() };
+        return { id: genId(), front: c.front, back: c.back, wrongAnswers: c.wrongAnswers || [], quizMode: c.quizMode || 'deck', srs: SRS.newCardData() };
       });
     }
   } else {
@@ -315,6 +336,7 @@ function saveDeck() {
         front: c.front,
         back: c.back,
         wrongAnswers: c.wrongAnswers || [],
+        quizMode: c.quizMode || 'deck',
         srs: SRS.newCardData(),
       })),
       createdAt: Date.now(),
@@ -469,7 +491,7 @@ function showQuizCard() {
 
   const card = q.cards[q.currentIndex];
   const deck = state.decks.find(d => d.id === q.deckId);
-  const mode = getQuizModeForCard(deck);
+  const mode = getQuizModeForCard(card, deck);
 
   q.answered = false;
 
@@ -503,7 +525,12 @@ function showQuizCard() {
   }
 }
 
-function getQuizModeForCard(deck) {
+function getQuizModeForCard(card, deck) {
+  // Card-level override takes priority
+  if (card.quizMode && card.quizMode !== 'deck') {
+    return card.quizMode;
+  }
+  // Fall back to deck default
   if (!deck) return 'mcq';
   if (deck.quizMode === 'both') return Math.random() > 0.5 ? 'mcq' : 'free';
   return deck.quizMode;

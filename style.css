@@ -366,8 +366,38 @@ input[type="text"]:focus, textarea:focus {
 }
 .card-row-delete:hover { color: var(--danger); }
 
+.card-row-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.card-mode-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.card-mode-btn {
+  padding: 4px 10px;
+  background: var(--bg-input);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.card-mode-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text-dim); }
+.card-mode-btn.active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .card-row-wrong {
-  padding-left: 4px;
+  padding-left: 0;
 }
 
 .btn-add-wrong {
