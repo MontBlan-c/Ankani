@@ -94,8 +94,9 @@ const SRS = {
   },
 
   isDue(card) {
-    if (!card.nextReview) return true; // New card
-    return Date.now() >= card.nextReview;
+    if (!card.srs.nextReview) return true; // New card
+    if (card.srs.nextReview === Infinity) return false; // Burned
+    return Date.now() >= card.srs.nextReview;
   },
 
   // Create a new card SRS data object
