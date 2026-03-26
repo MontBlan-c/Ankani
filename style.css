@@ -78,6 +78,18 @@ body {
 .nav-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
 .nav-btn.active { color: var(--accent); background: var(--accent-glow); }
 
+.nav-badge {
+  background: var(--danger);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.4;
+}
+
 /* ===== Views ===== */
 .view {
   max-width: 900px;
@@ -537,6 +549,54 @@ input[type="text"]:focus, textarea:focus {
   color: var(--text-muted);
   text-align: right;
   min-width: 80px;
+}
+
+/* ===== Reviews View ===== */
+.reviews-deck-group {
+  margin-bottom: 28px;
+}
+
+.reviews-deck-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.reviews-deck-color {
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.reviews-deck-name {
+  font-size: 1rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.reviews-deck-count {
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.btn-sm {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+}
+
+.modal-actions {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  justify-content: center;
 }
 
 /* ===== Quiz View ===== */

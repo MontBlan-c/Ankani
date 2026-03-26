@@ -19,6 +19,11 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           Dashboard
         </button>
+        <button class="nav-btn" onclick="navigate('reviews')" data-nav="reviews">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>Reviews</span>
+          <span class="nav-badge" id="nav-badge-reviews" style="display:none">0</span>
+        </button>
         <button class="nav-btn" onclick="navigate('decks')" data-nav="decks">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           Decks
@@ -77,6 +82,22 @@
         <button class="btn btn-primary" onclick="navigate('create')">+ New Deck</button>
       </div>
       <div id="decks-list" class="deck-grid"></div>
+    </section>
+
+    <!-- Reviews View -->
+    <section id="view-reviews" class="view" style="display:none">
+      <div class="section-header">
+        <h2>Reviews</h2>
+        <button class="btn btn-primary" id="start-all-reviews-btn" onclick="startAllReviews()">Review All Due</button>
+      </div>
+      <div id="reviews-empty" class="empty-state" style="display:none">
+        <div class="empty-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <h3>All caught up!</h3>
+        <p>No reviews due right now. Check back later.</p>
+      </div>
+      <div id="reviews-list"></div>
     </section>
 
     <!-- Create/Edit View -->

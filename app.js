@@ -57,6 +57,10 @@ function navigate(view, data) {
       document.getElementById('view-decks').style.display = '';
       renderDecks();
       break;
+    case 'reviews':
+      document.getElementById('view-reviews').style.display = '';
+      renderReviews();
+      break;
     case 'create':
       document.getElementById('view-create').style.display = '';
       initCreateForm(data);
@@ -85,6 +89,7 @@ function renderDashboard() {
   document.getElementById('stat-learned').textContent = learnedCards;
   document.getElementById('stat-accuracy').textContent = accuracy + '%';
   document.getElementById('stat-total').textContent = totalCards;
+  updateReviewBadge();
 
   const container = document.getElementById('dashboard-decks');
   const emptyState = document.getElementById('empty-state');
@@ -120,6 +125,136 @@ function renderDeckCard(deck) {
 // --- Decks View ---
 function renderDecks() {
   document.getElementById('decks-list').innerHTML = state.decks.map(deck => renderDeckCard(deck)).join('');
+}
+
+// --- Review Badge ---
+function updateReviewBadge() {
+  const dueCount = state.decks.reduce((s, d) => s + d.cards.filter(c => SRS.isDue(c)).length, 0);
+  const badge = document.getElementById('nav-badge-reviews');
+  if (dueCount > 0) {
+    badge.textContent = dueCount;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// --- Reviews View ---
+function renderReviews() {
+  updateReviewBadge();
+  const reviewsList = document.getElementById('reviews-list');
+  const emptyState = document.getElementById('reviews-empty');
+  const allBtn = document.getElementById('start-all-reviews-btn');
+
+  // Gather all due cards across all decks
+  let totalDue = 0;
+  let html = '';
+
+  state.decks.forEach(deck => {
+    const dueCards = deck.cards.filter(c => SRS.isDue(c));
+    if (dueCards.length === 0) return;
+    totalDue += dueCards.length;
+
+    html += `
+      <div class="reviews-deck-group">
+        <div class="reviews-deck-header">
+          <div class="reviews-deck-color" style="background:${deck.color}"></div>
+          <h3 class="reviews-deck-name">${esc(deck.name)}</h3>
+          <span class="reviews-deck-count">${dueCards.length} due</span>
+          <button class="btn btn-secondary btn-sm" onclick="startDeckReview('${deck.id}')">Review Deck</button>
+        </div>
+        <div class="card-list">
+          ${dueCards.map(card => {
+            const stageClass = SRS.getStageCategory(card.srs.stage);
+            const stageName = SRS.STAGE_NAMES[card.srs.stage] || 'New';
+            return `
+              <div class="card-list-item" onclick="showReviewCardInfo('${deck.id}', '${card.id}')">
+                <div class="card-list-srs ${stageClass}"></div>
+                <div class="card-list-front">${esc(card.front)}</div>
+                <div class="card-list-back">${esc(card.back)}</div>
+                <div class="card-list-next">
+                  <span class="srs-stage-badge ${SRS.STAGE_CLASSES[card.srs.stage] || 'new'}" style="font-size:0.65rem">${stageName}</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  if (totalDue === 0) {
+    emptyState.style.display = '';
+    reviewsList.innerHTML = '';
+    allBtn.style.display = 'none';
+  } else {
+    emptyState.style.display = 'none';
+    reviewsList.innerHTML = html;
+    allBtn.style.display = '';
+    allBtn.textContent = `Review All Due (${totalDue})`;
+  }
+}
+
+function startAllReviews() {
+  // Gather all due cards across all decks
+  const allDue = [];
+  state.decks.forEach(deck => {
+    deck.cards.filter(c => SRS.isDue(c)).forEach(card => {
+      allDue.push({ card, deckId: deck.id });
+    });
+  });
+  if (allDue.length === 0) return;
+
+  const shuffled = allDue.sort(() => Math.random() - 0.5);
+
+  state.quiz = {
+    deckId: null, // multi-deck review
+    multiDeck: true,
+    cardDeckMap: Object.fromEntries(shuffled.map(item => [item.card.id, item.deckId])),
+    cards: shuffled.map(item => item.card),
+    currentIndex: 0,
+    answered: false,
+    wasCorrect: false,
+    totalAnswered: 0,
+    totalCorrect: 0,
+    returnTo: 'reviews',
+  };
+
+  navigate('quiz');
+  showQuizCard();
+}
+
+function startDeckReview(deckId) {
+  state.currentDeckId = deckId;
+  startReview('reviews');
+}
+
+function showReviewCardInfo(deckId, cardId) {
+  state.currentDeckId = deckId;
+  showCardInfo(cardId);
+}
+
+function reviewSingleCard(deckId, cardId) {
+  const deck = state.decks.find(d => d.id === deckId);
+  if (!deck) return;
+  const card = deck.cards.find(c => c.id === cardId);
+  if (!card) return;
+
+  closeModal();
+
+  state.quiz = {
+    deckId: deckId,
+    cards: [card],
+    currentIndex: 0,
+    answered: false,
+    wasCorrect: false,
+    totalAnswered: 0,
+    totalCorrect: 0,
+    returnTo: state.currentView,
+  };
+
+  navigate('quiz');
+  showQuizCard();
 }
 
 // --- Create/Edit Form ---
@@ -449,6 +584,9 @@ function showCardInfo(cardId) {
       <span class="modal-row-label">Accuracy</span>
       <span class="modal-row-value">${accuracy}%</span>
     </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="reviewSingleCard('${deck.id}', '${card.id}')">Review Now</button>
+    </div>
   `;
   document.getElementById('card-modal').style.display = '';
 }
@@ -458,7 +596,7 @@ function closeModal() {
 }
 
 // --- Quiz / Review ---
-function startReview() {
+function startReview(returnTo) {
   const deck = state.decks.find(d => d.id === state.currentDeckId);
   if (!deck) return;
 
@@ -476,6 +614,7 @@ function startReview() {
     wasCorrect: false,
     totalAnswered: 0,
     totalCorrect: 0,
+    returnTo: returnTo || 'deck-detail',
   };
 
   navigate('quiz');
@@ -490,7 +629,9 @@ function showQuizCard() {
   }
 
   const card = q.cards[q.currentIndex];
-  const deck = state.decks.find(d => d.id === q.deckId);
+  // For multi-deck reviews, look up which deck this card belongs to
+  const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
+  const deck = state.decks.find(d => d.id === deckId);
   const mode = getQuizModeForCard(card, deck);
 
   q.answered = false;
@@ -625,7 +766,8 @@ function showResult(correct) {
   const grade = correct ? 2 : 0;
 
   // Find and update actual card in deck
-  const deck = state.decks.find(d => d.id === q.deckId);
+  const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
+  const deck = state.decks.find(d => d.id === deckId);
   if (deck) {
     const actualCard = deck.cards.find(c => c.id === card.id);
     if (actualCard) {
@@ -657,7 +799,15 @@ function endReview() {
     const accuracy = Math.round((q.totalCorrect / q.totalAnswered) * 100);
     alert(`Review complete!\n\nCards reviewed: ${q.totalAnswered}\nCorrect: ${q.totalCorrect}\nAccuracy: ${accuracy}%`);
   }
-  navigate('deck-detail', q.deckId || state.currentDeckId);
+  updateReviewBadge();
+  const returnTo = q.returnTo || 'deck-detail';
+  if (returnTo === 'reviews') {
+    navigate('reviews');
+  } else if (returnTo === 'deck-detail') {
+    navigate('deck-detail', q.deckId || state.currentDeckId);
+  } else {
+    navigate(returnTo, q.deckId || state.currentDeckId);
+  }
 }
 
 // --- Keyboard shortcuts ---
@@ -707,4 +857,5 @@ function levenshtein(a, b) {
 
 // --- Init ---
 loadState();
+updateReviewBadge();
 navigate('dashboard');
