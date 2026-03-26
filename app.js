@@ -91,6 +91,9 @@ function renderDashboard() {
   document.getElementById('stat-total').textContent = totalCards;
   updateReviewBadge();
 
+  // SRS stage piles
+  renderSRSPiles();
+
   const container = document.getElementById('dashboard-decks');
   const emptyState = document.getElementById('empty-state');
 
@@ -102,6 +105,72 @@ function renderDashboard() {
 
   emptyState.style.display = 'none';
   container.innerHTML = state.decks.map(deck => renderDeckCard(deck)).join('');
+}
+
+function renderSRSPiles() {
+  // Collect all cards across all decks, grouped by SRS category
+  const piles = [
+    { key: 'apprentice', label: 'Apprentice', stages: [1,2,3,4], cards: [] },
+    { key: 'guru',       label: 'Guru',       stages: [5,6],     cards: [] },
+    { key: 'master',     label: 'Master',     stages: [7],       cards: [] },
+    { key: 'enlightened',label: 'Enlightened', stages: [8],       cards: [] },
+    { key: 'burned',     label: 'Burned',     stages: [9],       cards: [] },
+  ];
+
+  state.decks.forEach(deck => {
+    deck.cards.forEach(card => {
+      const pile = piles.find(p => p.stages.includes(card.srs.stage));
+      if (pile) {
+        pile.cards.push({ card, deckName: deck.name, deckColor: deck.color, deckId: deck.id });
+      }
+    });
+  });
+
+  const container = document.getElementById('srs-piles');
+  container.innerHTML = `
+    <div class="srs-piles-row">
+      ${piles.map(pile => `
+        <div class="srs-pile srs-pile-${pile.key} ${pile.cards.length === 0 ? 'empty' : ''}" onclick="togglePile('${pile.key}')">
+          <div class="srs-pile-count">${pile.cards.length}</div>
+          <div class="srs-pile-label">${pile.label}</div>
+        </div>
+      `).join('')}
+    </div>
+    ${piles.map(pile => `
+      <div class="srs-pile-cards" id="pile-${pile.key}" style="display:none">
+        ${pile.cards.length === 0 ? '<div class="srs-pile-empty">No cards at this stage</div>' :
+          pile.cards.map(({ card, deckName, deckColor, deckId }) => {
+            const stageName = SRS.STAGE_NAMES[card.srs.stage] || 'New';
+            const nextText = card.srs.stage >= 9 ? 'Burned' : SRS.formatTimeUntil(card.srs.nextReview);
+            return `
+              <div class="srs-pile-card" onclick="state.currentDeckId='${deckId}'; showCardInfo('${card.id}')">
+                <div class="srs-pile-card-color" style="background:${deckColor}"></div>
+                <div class="srs-pile-card-front">${esc(card.front)}</div>
+                <div class="srs-pile-card-back">${esc(card.back)}</div>
+                <div class="srs-pile-card-meta">
+                  <span class="srs-pile-card-deck">${esc(deckName)}</span>
+                  <span class="srs-pile-card-next">${nextText}</span>
+                </div>
+              </div>
+            `;
+          }).join('')
+        }
+      </div>
+    `).join('')}
+  `;
+}
+
+function togglePile(key) {
+  const el = document.getElementById('pile-' + key);
+  const isOpen = el.style.display !== 'none';
+  // Close all piles
+  document.querySelectorAll('.srs-pile-cards').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.srs-pile').forEach(p => p.classList.remove('open'));
+  // Open clicked one if it was closed
+  if (!isOpen) {
+    el.style.display = '';
+    document.querySelector(`.srs-pile-${key}`).classList.add('open');
+  }
 }
 
 function renderDeckCard(deck) {
