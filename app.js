@@ -407,6 +407,7 @@ function addCardRow(front = '', back = '', wrongAnswers = [], cardMode = 'deck')
         </div>
         <div class="card-row-wrong" ${cardMode === 'free' ? 'style="display:none"' : ''}>
           <button class="btn-add-wrong" onclick="addWrongAnswer(this)" title="Add a wrong answer choice">+ Wrong Answer</button>
+          <button class="btn-ai-generate" onclick="aiGenerateWrong(this)" title="Use AI to generate wrong answers">AI Generate</button>
           <div class="wrong-answers-list"></div>
         </div>
       </div>
@@ -960,6 +961,116 @@ function levenshtein(a, b) {
     }
   }
   return d[m][n];
+}
+
+// --- Settings ---
+function getApiKey() {
+  return localStorage.getItem('ankani_api_key') || '';
+}
+
+function openSettings() {
+  document.getElementById('api-key-input').value = getApiKey();
+  document.getElementById('settings-modal').style.display = '';
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').style.display = 'none';
+}
+
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (key) {
+    localStorage.setItem('ankani_api_key', key);
+  } else {
+    localStorage.removeItem('ankani_api_key');
+  }
+  closeSettings();
+}
+
+function toggleApiKeyVisibility() {
+  const input = document.getElementById('api-key-input');
+  const btn = input.nextElementSibling;
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = 'Hide';
+  } else {
+    input.type = 'password';
+    btn.textContent = 'Show';
+  }
+}
+
+// --- AI Wrong Answer Generation ---
+async function aiGenerateWrong(btn) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    openSettings();
+    return;
+  }
+
+  const row = btn.closest('.card-row');
+  const front = row.querySelector('.card-front').value.trim();
+  const back = row.querySelector('.card-back').value.trim();
+
+  if (!front || !back) {
+    // Flash the empty fields
+    if (!front) row.querySelector('.card-front').style.borderColor = 'var(--danger)';
+    if (!back) row.querySelector('.card-back').style.borderColor = 'var(--danger)';
+    setTimeout(() => {
+      row.querySelector('.card-front').style.borderColor = '';
+      row.querySelector('.card-back').style.borderColor = '';
+    }, 2000);
+    return;
+  }
+
+  // Show loading state
+  const originalText = btn.textContent;
+  btn.textContent = 'Generating...';
+  btn.disabled = true;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `Generate exactly 3 plausible but incorrect answers for this quiz card. They should be believable wrong answers that a student might confuse with the correct one.
+
+Question: ${front}
+Correct answer: ${back}
+
+Reply with ONLY 3 wrong answers, one per line, nothing else. No numbering, no bullets, no explanation.`
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.content[0].text.trim();
+    const wrongAnswers = text.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3);
+
+    // Add them to the card row
+    const wrongList = row.querySelector('.wrong-answers-list');
+    wrongAnswers.forEach(w => insertWrongInput(wrongList, w));
+
+  } catch (err) {
+    console.error('AI generation failed:', err);
+    alert('AI generation failed: ' + err.message);
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
 }
 
 // --- Init ---

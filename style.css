@@ -555,7 +555,7 @@ input[type="text"]:focus, textarea:focus {
   padding-left: 0;
 }
 
-.btn-add-wrong {
+.btn-add-wrong, .btn-ai-generate {
   background: none;
   border: 1px dashed rgba(255,255,255,0.15);
   color: var(--text-muted);
@@ -568,6 +568,35 @@ input[type="text"]:focus, textarea:focus {
 .btn-add-wrong:hover {
   border-color: var(--danger);
   color: var(--danger);
+}
+.btn-ai-generate {
+  border-color: rgba(155,89,182,0.3);
+  color: var(--purple);
+}
+.btn-ai-generate:hover {
+  border-color: var(--purple);
+  background: rgba(155,89,182,0.1);
+  color: var(--purple);
+}
+.btn-ai-generate:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* Settings */
+.settings-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.api-key-input-row {
+  display: flex;
+  gap: 8px;
+}
+.api-key-input-row input {
+  flex: 1;
 }
 
 .wrong-answers-list {
