@@ -758,12 +758,22 @@ function showQuizCard() {
     input.className = 'free-input';
     input.disabled = false;
 
+    // Unbind any previous wanakana
+    if (typeof wanakana !== 'undefined') {
+      try { wanakana.unbind(input); } catch(e) {}
+    }
+
     // Set language for IME input
     const deckLang = deck ? (deck.language || '') : '';
     if (deckLang) {
       input.setAttribute('lang', deckLang);
       input.placeholder = `Type your answer in ${LANG_NAMES[deckLang] || deckLang}...`;
       typeLabel += ` — ${LANG_NAMES[deckLang] || deckLang}`;
+
+      // For Japanese, use wanakana to auto-convert romaji → hiragana
+      if (deckLang === 'ja' && typeof wanakana !== 'undefined') {
+        wanakana.bind(input, { IMEMode: true });
+      }
     } else {
       input.removeAttribute('lang');
       input.placeholder = 'Type your answer...';
@@ -998,6 +1008,12 @@ function nextCard() {
 }
 
 function endReview() {
+  // Unbind wanakana on exit
+  const input = document.getElementById('free-input');
+  if (typeof wanakana !== 'undefined') {
+    try { wanakana.unbind(input); } catch(e) {}
+  }
+
   const q = state.quiz;
   // Show summary if anything was reviewed
   if (q.totalAnswered > 0) {
@@ -1227,9 +1243,15 @@ async function aiGenerateCards() {
 
     let vocabInstruction = '';
     if (questionType === 'vocabulary' && langName) {
-      vocabInstruction = `Make all questions vocabulary questions in the WaniKani style. Format: "What is [English word] in ${langName}?" and the answer is a SINGLE word or short phrase in ${langName} script (e.g., hiragana/katakana for Japanese, hangul for Korean, characters for Chinese). Keep answers to one word whenever possible. The answer MUST be in the target language's native script.`;
+      vocabInstruction = `Make all questions vocabulary questions in the WaniKani style.
+
+CRITICAL FORMAT RULES:
+- The question MUST be: "What is [ENGLISH WORD] in ${langName}?" — you MUST include the actual English word in the question. For example: "What is armor in ${langName}?" or "What is water in ${langName}?"
+- The answer MUST be a SINGLE word or short phrase in ${langName} native script (e.g., hiragana/katakana for Japanese, hangul for Korean, characters for Chinese).
+- NEVER write "What is" without the English word. The English word is the whole point of the question.
+- Keep answers to one word whenever possible.`;
     } else if (questionType === 'vocabulary') {
-      vocabInstruction = 'Make all questions vocabulary questions. Format: "What is [word] in [language]?" with the answer being a single word or short phrase in the target language. Keep answers concise — one word when possible.';
+      vocabInstruction = `Make all questions vocabulary questions. The question MUST include the English word being asked about. Format: "What is [ENGLISH WORD] in [language]?" — for example "What is cat in Spanish?". The answer is a single word in the target language. NEVER omit the English word from the question.`;
     }
 
     const typeInstructions = {
