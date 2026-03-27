@@ -944,7 +944,8 @@ input[type="text"]:focus, textarea:focus {
   letter-spacing: 0.5px;
 }
 
-.ai-gen-option select {
+.ai-gen-option select,
+.ai-card-count-input {
   padding: 8px 12px;
   background: var(--bg-input);
   border: 1px solid rgba(255,255,255,0.1);
@@ -952,9 +953,10 @@ input[type="text"]:focus, textarea:focus {
   color: var(--text);
   font-size: 0.85rem;
   font-family: inherit;
-  cursor: pointer;
 }
-.ai-gen-option select:focus {
+.ai-card-count-input { width: 80px; }
+.ai-gen-option select:focus,
+.ai-card-count-input:focus {
   outline: none;
   border-color: var(--accent);
 }
