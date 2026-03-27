@@ -157,6 +157,36 @@
               <button class="btn btn-secondary" onclick="parseBulkAdd()">Add Cards</button>
             </div>
           </div>
+          <div class="ai-generate-section">
+            <button class="btn btn-ghost ai-gen-toggle" onclick="toggleAIGenerate()">
+              <span class="ai-sparkle">&#10024;</span> AI Generate from Text
+            </button>
+            <div id="ai-generate-area" style="display:none">
+              <p class="settings-hint">Paste notes, a textbook page, or any text and AI will generate quiz cards from it.</p>
+              <textarea id="ai-source-text" placeholder="Paste your notes, textbook content, or any study material here..." rows="8"></textarea>
+              <div class="ai-gen-options">
+                <div class="ai-gen-option">
+                  <label>Number of cards</label>
+                  <select id="ai-card-count">
+                    <option value="5">5 cards</option>
+                    <option value="10" selected>10 cards</option>
+                    <option value="15">15 cards</option>
+                    <option value="20">20 cards</option>
+                  </select>
+                </div>
+                <div class="ai-gen-option">
+                  <label>Include wrong answers</label>
+                  <select id="ai-include-wrong">
+                    <option value="yes" selected>Yes (for MCQ)</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary ai-gen-btn" id="ai-gen-btn" onclick="aiGenerateCards()">
+                <span class="ai-sparkle">&#10024;</span> Generate Cards
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="form-actions">

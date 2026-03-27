@@ -1073,6 +1073,135 @@ Reply with ONLY 3 wrong answers, one per line, nothing else. No numbering, no bu
   }
 }
 
+// --- AI Generate Cards from Text ---
+function toggleAIGenerate() {
+  const area = document.getElementById('ai-generate-area');
+  area.style.display = area.style.display === 'none' ? '' : 'none';
+}
+
+async function aiGenerateCards() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    openSettings();
+    return;
+  }
+
+  const sourceText = document.getElementById('ai-source-text').value.trim();
+  if (!sourceText) {
+    document.getElementById('ai-source-text').style.borderColor = 'var(--danger)';
+    setTimeout(() => document.getElementById('ai-source-text').style.borderColor = '', 2000);
+    return;
+  }
+
+  const cardCount = document.getElementById('ai-card-count').value;
+  const includeWrong = document.getElementById('ai-include-wrong').value === 'yes';
+
+  const btn = document.getElementById('ai-gen-btn');
+  btn.innerHTML = '<span class="ai-sparkle">&#10024;</span> Generating...';
+  btn.disabled = true;
+
+  try {
+    const wrongInstructions = includeWrong
+      ? `For each card, also generate 3 plausible but incorrect wrong answers.
+Use this exact format per card:
+Q: [question]
+A: [correct answer]
+W: [wrong1] | [wrong2] | [wrong3]`
+      : `Use this exact format per card:
+Q: [question]
+A: [correct answer]`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        messages: [{
+          role: 'user',
+          content: `Generate exactly ${cardCount} quiz/flashcard cards from the following text. Extract the most important facts, concepts, definitions, and relationships.
+
+${wrongInstructions}
+
+IMPORTANT: Output ONLY the cards in the exact format above. No numbering, no extra text, no explanations.
+
+---
+${sourceText}
+---`
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.content[0].text.trim();
+
+    // Parse the response
+    const cards = parseAICards(text, includeWrong);
+
+    if (cards.length === 0) {
+      throw new Error('Could not parse any cards from AI response');
+    }
+
+    // Add cards to the form
+    cards.forEach(card => {
+      addCardRow(card.front, card.back, card.wrongAnswers || []);
+    });
+
+    // Clear the textarea and show success
+    document.getElementById('ai-source-text').value = '';
+    document.getElementById('ai-generate-area').style.display = 'none';
+
+  } catch (err) {
+    console.error('AI card generation failed:', err);
+    alert('AI generation failed: ' + err.message);
+  } finally {
+    btn.innerHTML = '<span class="ai-sparkle">&#10024;</span> Generate Cards';
+    btn.disabled = false;
+  }
+}
+
+function parseAICards(text, includeWrong) {
+  const cards = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  let currentCard = null;
+
+  for (const line of lines) {
+    if (line.startsWith('Q:') || line.startsWith('Q :')) {
+      // Start a new card
+      if (currentCard && currentCard.front && currentCard.back) {
+        cards.push(currentCard);
+      }
+      currentCard = { front: line.replace(/^Q\s*:\s*/, '').trim(), back: '', wrongAnswers: [] };
+    } else if (line.startsWith('A:') || line.startsWith('A :')) {
+      if (currentCard) {
+        currentCard.back = line.replace(/^A\s*:\s*/, '').trim();
+      }
+    } else if (line.startsWith('W:') || line.startsWith('W :')) {
+      if (currentCard) {
+        currentCard.wrongAnswers = line.replace(/^W\s*:\s*/, '').split('|').map(s => s.trim()).filter(Boolean);
+      }
+    }
+  }
+
+  // Don't forget the last card
+  if (currentCard && currentCard.front && currentCard.back) {
+    cards.push(currentCard);
+  }
+
+  return cards;
+}
+
 // --- Init ---
 loadState();
 updateReviewBadge();

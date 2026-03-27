@@ -641,6 +641,86 @@ input[type="text"]:focus, textarea:focus {
   resize: vertical;
 }
 
+/* AI Generate from Text */
+.ai-generate-section {
+  margin-top: 12px;
+}
+
+.ai-gen-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-sparkle {
+  font-size: 1rem;
+}
+
+#ai-generate-area {
+  margin-top: 12px;
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(155,89,182,0.2);
+}
+
+#ai-generate-area textarea {
+  margin-bottom: 12px;
+  resize: vertical;
+}
+
+.ai-gen-options {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.ai-gen-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-gen-option label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ai-gen-option select {
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+.ai-gen-option select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ai-gen-btn {
+  width: 100%;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--purple), #6C3483);
+  box-shadow: 0 2px 12px rgba(155,89,182,0.3);
+}
+.ai-gen-btn:hover {
+  box-shadow: 0 4px 20px rgba(155,89,182,0.5);
+  transform: translateY(-1px);
+}
+.ai-gen-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
