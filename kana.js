@@ -1,5 +1,5 @@
 // ===== Minimal Romaji → Kana converter (WanaKana-lite) =====
-// Converts romaji input to hiragana in real-time, similar to WaniKani's input.
+// Tracks raw romaji input separately and displays converted kana.
 
 const RomajiToKana = (() => {
   const HIRAGANA_MAP = {
@@ -19,11 +19,10 @@ const RomajiToKana = (() => {
     da:'だ',di:'ぢ',du:'づ',de:'で',do:'ど',
     ba:'ば',bi:'び',bu:'ぶ',be:'べ',bo:'ぼ',
     pa:'ぱ',pi:'ぴ',pu:'ぷ',pe:'ぺ',po:'ぽ',
-    // Combo kana
     kya:'きゃ',kyi:'きぃ',kyu:'きゅ',kye:'きぇ',kyo:'きょ',
-    sha:'しゃ',shi:'し',shu:'しゅ',she:'しぇ',sho:'しょ',
+    sha:'しゃ',shu:'しゅ',she:'しぇ',sho:'しょ',
     sya:'しゃ',syi:'しぃ',syu:'しゅ',sye:'しぇ',syo:'しょ',
-    cha:'ちゃ',chi:'ち',chu:'ちゅ',che:'ちぇ',cho:'ちょ',
+    cha:'ちゃ',chu:'ちゅ',che:'ちぇ',cho:'ちょ',
     tya:'ちゃ',tyi:'ちぃ',tyu:'ちゅ',tye:'ちぇ',tyo:'ちょ',
     nya:'にゃ',nyi:'にぃ',nyu:'にゅ',nye:'にぇ',nyo:'にょ',
     hya:'ひゃ',hyi:'ひぃ',hyu:'ひゅ',hye:'ひぇ',hyo:'ひょ',
@@ -34,24 +33,19 @@ const RomajiToKana = (() => {
     jya:'じゃ',jyi:'じぃ',jyu:'じゅ',jye:'じぇ',jyo:'じょ',
     bya:'びゃ',byi:'びぃ',byu:'びゅ',bye:'びぇ',byo:'びょ',
     pya:'ぴゃ',pyi:'ぴぃ',pyu:'ぴゅ',pye:'ぴぇ',pyo:'ぴょ',
-    // Small kana
     xa:'ぁ',xi:'ぃ',xu:'ぅ',xe:'ぇ',xo:'ぉ',
     xya:'ゃ',xyu:'ゅ',xyo:'ょ',
     xtu:'っ',xtsu:'っ',
-    // Punctuation
     '-':'ー','.':'。',',':'、','?':'？','!':'！',
   };
 
-  // Double consonant → っ + consonant
   const DOUBLE_CONSONANTS = 'bcdfghjklmpqrstvwxyz';
 
-  // Check if a string could be the start of a valid romaji sequence
   function couldBeRomaji(s) {
     if (s.length === 0) return true;
     for (const key of Object.keys(HIRAGANA_MAP)) {
       if (key.startsWith(s)) return true;
     }
-    // Double consonant check
     if (s.length === 1 && DOUBLE_CONSONANTS.includes(s)) return true;
     if (s.length >= 2 && s[0] === s[1] && DOUBLE_CONSONANTS.includes(s[0])) {
       const rest = s.slice(1);
@@ -62,10 +56,12 @@ const RomajiToKana = (() => {
     return false;
   }
 
-  function convert(text) {
+  // Convert a pure romaji string to kana. Returns { result, pending }
+  // where pending is unconverted trailing romaji (like 'n' or 'sh')
+  function convert(romaji) {
     let result = '';
     let buffer = '';
-    const lower = text.toLowerCase();
+    const lower = romaji.toLowerCase();
 
     for (let i = 0; i < lower.length; i++) {
       const ch = lower[i];
@@ -90,7 +86,6 @@ const RomajiToKana = (() => {
 
       // Check for exact match
       if (HIRAGANA_MAP[buffer]) {
-        // But check if a longer match is possible
         if (i + 1 < lower.length && couldBeRomaji(buffer + lower[i + 1])) {
           continue;
         }
@@ -101,79 +96,90 @@ const RomajiToKana = (() => {
 
       // If buffer can't start any valid romaji, flush first char
       if (!couldBeRomaji(buffer)) {
-        // If first char is 'n' followed by a consonant, it's ん
         if (buffer[0] === 'n' && buffer.length > 1 && !'aiueoy'.includes(buffer[1])) {
           result += 'ん';
         } else {
           result += buffer[0];
         }
-        // Re-process from second char
         i -= (buffer.length - 1);
         buffer = '';
         continue;
       }
     }
 
-    // Handle remaining buffer
-    // Keep trailing 'n' as-is (user might type a vowel next)
-    // Only convert 'n' to 'ん' when we know it's final (handled by the loop above)
-    if (HIRAGANA_MAP[buffer]) {
-      result += HIRAGANA_MAP[buffer];
-    } else {
-      result += buffer;
-    }
-
-    return result;
+    return { result, pending: buffer };
   }
 
-  // Convert hiragana string to katakana
   function toKatakana(str) {
     return str.replace(/[\u3041-\u3096]/g, ch =>
       String.fromCharCode(ch.charCodeAt(0) + 0x60)
     );
   }
 
-  // Current mode: 'hiragana' or 'katakana'
   let mode = 'hiragana';
-
   function setMode(m) { mode = m; }
   function getMode() { return mode; }
 
-  // Bind to an input element for real-time conversion
+  // Each bound input tracks its own raw romaji buffer
   let boundInputs = new Map();
 
   function bind(input) {
     if (boundInputs.has(input)) return;
 
-    const handler = (e) => {
-      const el = e.target;
-      const pos = el.selectionStart;
-      const original = el.value;
-      let converted = convert(original);
-      if (mode === 'katakana') {
-        converted = toKatakana(converted);
+    const state = { romaji: '' };
+
+    const onKeydown = (e) => {
+      // Handle backspace on the romaji buffer
+      if (e.key === 'Backspace') {
+        if (state.romaji.length > 0) {
+          e.preventDefault();
+          state.romaji = state.romaji.slice(0, -1);
+          updateDisplay(input, state);
+        }
+        return;
       }
 
-      if (converted !== original) {
-        el.value = converted;
-        // Adjust cursor position
-        const diff = original.length - converted.length;
-        const newPos = Math.max(0, pos - diff);
-        el.setSelectionRange(newPos, newPos);
-      }
+      // Let non-character keys pass through
+      if (e.key.length !== 1) return;
+
+      // Only intercept printable characters
+      e.preventDefault();
+      state.romaji += e.key;
+      updateDisplay(input, state);
     };
 
-    input.addEventListener('input', handler);
-    boundInputs.set(input, handler);
+    const onCompositionstart = () => {
+      // If browser IME activates, disable our handler
+    };
+
+    input.addEventListener('keydown', onKeydown);
+    boundInputs.set(input, { onKeydown, state });
+  }
+
+  function updateDisplay(input, state) {
+    const { result, pending } = convert(state.romaji);
+    let display = result + pending;
+    if (mode === 'katakana') {
+      display = toKatakana(result) + pending;
+    }
+    input.value = display;
+    input.setSelectionRange(display.length, display.length);
   }
 
   function unbind(input) {
-    const handler = boundInputs.get(input);
-    if (handler) {
-      input.removeEventListener('input', handler);
+    const data = boundInputs.get(input);
+    if (data) {
+      input.removeEventListener('keydown', data.onKeydown);
       boundInputs.delete(input);
     }
   }
 
-  return { convert, toKatakana, bind, unbind, setMode, getMode };
+  function resetInput(input) {
+    const data = boundInputs.get(input);
+    if (data) {
+      data.state.romaji = '';
+    }
+  }
+
+  return { convert, toKatakana, bind, unbind, setMode, getMode, resetInput };
 })();

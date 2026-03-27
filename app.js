@@ -904,7 +904,7 @@ function showQuizCard() {
     input.className = 'free-input';
     input.disabled = false;
 
-    // Unbind any previous kana converter
+    // Unbind previous kana converter
     RomajiToKana.unbind(input);
 
     // Set language for IME input
@@ -914,11 +914,10 @@ function showQuizCard() {
       input.placeholder = `Type your answer in ${LANG_NAMES[deckLang] || deckLang}...`;
       typeLabel += ` — ${LANG_NAMES[deckLang] || deckLang}`;
 
-      // For Japanese, auto-convert romaji → kana as you type
       if (deckLang === 'ja') {
         RomajiToKana.setMode('hiragana');
         RomajiToKana.bind(input);
-        // Show kana toggle
+        RomajiToKana.resetInput(input);
         document.getElementById('kana-toggle').style.display = '';
         document.querySelectorAll('.kana-btn').forEach(b => {
           b.classList.toggle('active', b.dataset.kana === 'hiragana');
