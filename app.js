@@ -746,7 +746,10 @@ function showQuizCard() {
     input.value = '';
     input.className = 'free-input';
     input.disabled = false;
-    document.getElementById('check-answer-btn').style.display = '';
+    const checkBtn = document.getElementById('check-answer-btn');
+    checkBtn.style.display = '';
+    checkBtn.textContent = 'Check';
+    checkBtn.disabled = false;
     input.focus();
   }
 }
