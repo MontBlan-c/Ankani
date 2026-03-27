@@ -13,7 +13,7 @@ const RomajiToKana = (() => {
     ya:'や',yu:'ゆ',yo:'よ',
     ra:'ら',ri:'り',ru:'る',re:'れ',ro:'ろ',
     wa:'わ',wi:'ゐ',we:'ゑ',wo:'を',
-    nn:'ん',n:'ん',
+    nn:'ん',
     ga:'が',gi:'ぎ',gu:'ぐ',ge:'げ',go:'ご',
     za:'ざ',zi:'じ',ji:'じ',zu:'ず',ze:'ぜ',zo:'ぞ',
     da:'だ',di:'ぢ',du:'づ',de:'で',do:'ど',
