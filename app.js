@@ -330,6 +330,7 @@ function reviewSingleCard(deckId, cardId) {
     totalAnswered: 0,
     totalCorrect: 0,
     returnTo: state.currentView,
+    practiceMode: true,
   };
 
   navigate('quiz');
@@ -671,7 +672,7 @@ function showCardInfo(cardId) {
       <span class="modal-row-value">${accuracy}%</span>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="reviewSingleCard('${deck.id}', '${card.id}')">Review Now</button>
+      <button class="btn btn-primary" onclick="reviewSingleCard('${deck.id}', '${card.id}')">Practice Now</button>
     </div>
   `;
   document.getElementById('card-modal').style.display = '';
@@ -980,51 +981,62 @@ function showResult(correct) {
   const resultMsg = document.getElementById('result-message');
   const correctDisplay = document.getElementById('correct-answer-display');
 
-  // Auto-grade: correct = Good (2), incorrect = Again (0) — like WaniKani
-  const grade = correct ? 2 : 0;
-
-  // Find and update actual card in deck
   const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
   const deck = state.decks.find(d => d.id === deckId);
   let stageName = '', stageClass = '', nextTime = '';
 
-  if (deck) {
-    const actualCard = deck.cards.find(c => c.id === card.id);
-    if (actualCard) {
-      SRS.reviewCard(actualCard, grade);
-      stageName = SRS.STAGE_NAMES[actualCard.srs.stage] || 'New';
-      stageClass = SRS.STAGE_CLASSES[actualCard.srs.stage] || 'new';
-      nextTime = SRS.formatTimeUntil(actualCard.srs.nextReview);
+  if (q.practiceMode) {
+    // Practice mode — no SRS changes, just show result
+    if (deck) {
+      const actualCard = deck.cards.find(c => c.id === card.id);
+      if (actualCard) {
+        stageName = SRS.STAGE_NAMES[actualCard.srs.stage] || 'New';
+        stageClass = SRS.STAGE_CLASSES[actualCard.srs.stage] || 'new';
+        nextTime = SRS.formatTimeUntil(actualCard.srs.nextReview);
+      }
+    }
+  } else {
+    // Real review — update SRS
+    const grade = correct ? 2 : 0;
+    if (deck) {
+      const actualCard = deck.cards.find(c => c.id === card.id);
+      if (actualCard) {
+        SRS.reviewCard(actualCard, grade);
+        stageName = SRS.STAGE_NAMES[actualCard.srs.stage] || 'New';
+        stageClass = SRS.STAGE_CLASSES[actualCard.srs.stage] || 'new';
+        nextTime = SRS.formatTimeUntil(actualCard.srs.nextReview);
+      }
     }
   }
 
   if (correct) {
-    // Card is done — it disappears and comes back based on SRS interval
     q.completed++;
     resultMsg.textContent = 'Correct!';
     resultMsg.className = 'result-message correct';
     correctDisplay.textContent = '';
-    document.getElementById('srs-info').innerHTML = `
-      <span class="srs-stage-badge ${stageClass}">${stageName}</span>
-      <span class="srs-next-review">Next review: ${nextTime}</span>
-    `;
+    document.getElementById('srs-info').innerHTML = q.practiceMode
+      ? `<span class="srs-stage-badge ${stageClass}">${stageName}</span>
+         <span class="srs-next-review">Practice — no SRS change</span>`
+      : `<span class="srs-stage-badge ${stageClass}">${stageName}</span>
+         <span class="srs-next-review">Next review: ${nextTime}</span>`;
   } else {
-    // Wrong — card goes back into the queue to be reviewed again this session
-    // Insert it a few cards later (not immediately) so you see other cards first
     const reinsertPos = Math.min(q.queue.length, Math.floor(Math.random() * 4) + 2);
     q.queue.splice(reinsertPos, 0, card);
 
     resultMsg.textContent = 'Incorrect';
     resultMsg.className = 'result-message wrong';
     correctDisplay.textContent = `Correct answer: ${card.back}`;
-    document.getElementById('srs-info').innerHTML = `
-      <span class="srs-stage-badge ${stageClass}">${stageName}</span>
-      <span class="srs-next-review">This card will appear again this session</span>
-    `;
+    document.getElementById('srs-info').innerHTML = q.practiceMode
+      ? `<span class="srs-stage-badge ${stageClass}">${stageName}</span>
+         <span class="srs-next-review">Practice — no SRS change</span>`
+      : `<span class="srs-stage-badge ${stageClass}">${stageName}</span>
+         <span class="srs-next-review">This card will appear again this session</span>`;
   }
 
-  saveState();
-  updateReviewBadge();
+  if (!q.practiceMode) {
+    saveState();
+    updateReviewBadge();
+  }
 
   // Update progress bar
   const pct = (q.completed / q.totalUnique) * 100;
