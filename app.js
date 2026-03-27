@@ -740,7 +740,8 @@ function showQuizCard() {
   } else {
     document.getElementById('mcq-area').style.display = 'none';
     document.getElementById('free-area').style.display = '';
-    document.getElementById('quiz-card-type').textContent = 'Type Your Answer';
+    const isAI = getGradingMode() === 'ai' && getApiKey();
+    document.getElementById('quiz-card-type').textContent = isAI ? 'Type Your Answer (AI Graded)' : 'Type Your Answer';
     const input = document.getElementById('free-input');
     input.value = '';
     input.className = 'free-input';
@@ -812,17 +813,42 @@ function selectMCQ(btn) {
   showResult(correct);
 }
 
-function checkFreeAnswer() {
+async function checkFreeAnswer() {
   if (state.quiz.answered) return;
   state.quiz.answered = true;
 
   const card = state.quiz.currentCard;
   const input = document.getElementById('free-input');
-  const userAnswer = input.value.trim().toLowerCase();
-  const correctAnswer = card.back.trim().toLowerCase();
+  const btn = document.getElementById('check-answer-btn');
+  const userAnswer = input.value.trim();
+  const correctAnswer = card.back.trim();
 
-  // Fuzzy match: allow minor typos
-  const correct = userAnswer === correctAnswer || levenshtein(userAnswer, correctAnswer) <= Math.max(1, Math.floor(correctAnswer.length * 0.2));
+  const gradingMode = getGradingMode();
+  const apiKey = getApiKey();
+
+  let correct;
+
+  if (gradingMode === 'ai' && apiKey) {
+    // AI grading
+    btn.textContent = 'Grading...';
+    btn.disabled = true;
+    input.disabled = true;
+
+    try {
+      correct = await aiGradeFreeResponse(card.front, correctAnswer, userAnswer, apiKey);
+    } catch (err) {
+      console.error('AI grading failed, falling back to exact match:', err);
+      // Fallback to exact match
+      const ua = userAnswer.toLowerCase();
+      const ca = correctAnswer.toLowerCase();
+      correct = ua === ca || levenshtein(ua, ca) <= Math.max(1, Math.floor(ca.length * 0.2));
+    }
+  } else {
+    // Exact match with fuzzy tolerance
+    const ua = userAnswer.toLowerCase();
+    const ca = correctAnswer.toLowerCase();
+    correct = ua === ca || levenshtein(ua, ca) <= Math.max(1, Math.floor(ca.length * 0.2));
+  }
 
   state.quiz.wasCorrect = correct;
   state.quiz.totalAnswered++;
@@ -830,9 +856,45 @@ function checkFreeAnswer() {
 
   input.disabled = true;
   input.classList.add(correct ? 'correct' : 'wrong');
-  document.getElementById('check-answer-btn').style.display = 'none';
+  btn.style.display = 'none';
 
   showResult(correct);
+}
+
+async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 50,
+      messages: [{
+        role: 'user',
+        content: `You are grading a quiz answer. Is the student's answer correct?
+
+Question: ${question}
+Correct answer: ${correctAnswer}
+Student's answer: ${userAnswer}
+
+The student's answer doesn't need to match word-for-word. Accept answers that are essentially correct in meaning, even if abbreviated, rephrased, or using synonyms. Be lenient with minor spelling errors. But reject answers that are wrong, incomplete in a meaningful way, or show a misunderstanding.
+
+Reply with ONLY "CORRECT" or "INCORRECT", nothing else.`
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`API error ${response.status}`);
+  }
+
+  const data = await response.json();
+  const verdict = data.content[0].text.trim().toUpperCase();
+  return verdict.includes('CORRECT') && !verdict.includes('INCORRECT');
 }
 
 function showResult(correct) {
@@ -970,11 +1032,26 @@ function getApiKey() {
 
 function openSettings() {
   document.getElementById('api-key-input').value = getApiKey();
+  const mode = getGradingMode();
+  document.querySelectorAll('.toggle-btn[data-grading]').forEach(b => {
+    b.classList.toggle('active', b.dataset.grading === mode);
+  });
   document.getElementById('settings-modal').style.display = '';
 }
 
 function closeSettings() {
   document.getElementById('settings-modal').style.display = 'none';
+}
+
+function getGradingMode() {
+  return localStorage.getItem('ankani_grading_mode') || 'exact';
+}
+
+function setGradingMode(mode) {
+  localStorage.setItem('ankani_grading_mode', mode);
+  document.querySelectorAll('.toggle-btn[data-grading]').forEach(b => {
+    b.classList.toggle('active', b.dataset.grading === mode);
+  });
 }
 
 function saveApiKey() {

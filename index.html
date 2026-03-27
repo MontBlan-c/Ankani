@@ -291,10 +291,18 @@
         <div class="modal-body">
           <div class="form-group">
             <label>Claude API Key</label>
-            <p class="settings-hint">Used to auto-generate wrong answers for MCQ cards. Stored only in your browser.</p>
+            <p class="settings-hint">Used to auto-generate wrong answers and AI grading. Stored only in your browser.</p>
             <div class="api-key-input-row">
               <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
               <button class="btn btn-secondary" onclick="toggleApiKeyVisibility()">Show</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Free Response Grading</label>
+            <p class="settings-hint">AI grading uses Claude to judge if your answer is correct, even if worded differently. Requires an API key.</p>
+            <div class="toggle-group">
+              <button class="toggle-btn active" data-grading="exact" onclick="setGradingMode('exact')">Exact Match</button>
+              <button class="toggle-btn" data-grading="ai" onclick="setGradingMode('ai')">AI Grading</button>
             </div>
           </div>
           <div class="form-actions">
