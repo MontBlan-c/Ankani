@@ -901,9 +901,12 @@ async function checkFreeAnswer() {
 }
 
 async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey, deckLang) {
-  const langContext = deckLang
-    ? `\n\nThis is a ${LANG_NAMES[deckLang] || deckLang} language quiz. Accept answers in any valid script for that language (e.g., hiragana, katakana, kanji for Japanese; hangul for Korean). Also accept romanized/transliterated answers (romaji, pinyin, etc.) if they match the correct pronunciation. Be lenient with diacritics and tone marks.`
-    : '';
+  let langContext = '';
+  if (deckLang === 'ja') {
+    langContext = `\n\nThis is a Japanese language quiz. The student is typing in hiragana. If the correct answer is in kanji, accept the hiragana reading as correct. For example if the correct answer is 草 (くさ), accept くさ. If the correct answer is 水 (みず), accept みず. Also accept katakana equivalents and romanized answers (romaji) if they match. Be lenient.`;
+  } else if (deckLang) {
+    langContext = `\n\nThis is a ${LANG_NAMES[deckLang] || deckLang} language quiz. Accept answers in any valid script for that language. Also accept romanized/transliterated answers if they match the correct pronunciation. Be lenient with diacritics and tone marks.`;
+  }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -1350,12 +1353,17 @@ function buildVocabPrompt(cardCount, includeWrong, langName, sourceContext) {
     : '';
   const exampleWrong = includeWrong ? '\nW: みず | くうき | ひ' : '';
 
+  const isJapanese = lang.toLowerCase().includes('japanese');
+  const scriptRule = isJapanese
+    ? `3. Answers MUST be in hiragana ONLY. NEVER use kanji. NEVER use katakana unless it is a loanword. For example: 草 is WRONG, くさ is CORRECT. 水 is WRONG, みず is CORRECT. コンピュータ is OK for "computer" because it is a loanword.`
+    : `3. Each answer MUST be a single word or short phrase in ${lang} native script`;
+
   return `Generate exactly ${cardCount} vocabulary flashcards for studying ${lang}.
 
 RULES:
 1. Each question MUST be in English asking for a ${lang} word
 2. Each question MUST contain the English word being asked about
-3. Each answer MUST be a single word or short phrase in ${lang} native script
+${scriptRule}
 4. Keep answers to ONE word whenever possible
 
 FORMAT (follow EXACTLY):
@@ -1367,7 +1375,7 @@ A: みず${includeWrong ? '\nW: かぜ | つち | ほのお' : ''}
 
 Now generate ${cardCount} cards using this exact format:
 Q: What is [ENGLISH WORD] in ${lang}?
-A: [single ${lang} word]${wrongPart}
+A: [single ${lang} word${isJapanese ? ' in hiragana, NO kanji' : ''}]${wrongPart}
 
 ${sourceContext ? sourceContext + '\n\nUse vocabulary from the source material above.' : `Use common, useful ${lang} vocabulary words.`}
 
