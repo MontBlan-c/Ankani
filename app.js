@@ -758,10 +758,8 @@ function showQuizCard() {
     input.className = 'free-input';
     input.disabled = false;
 
-    // Unbind any previous wanakana
-    if (typeof wanakana !== 'undefined') {
-      try { wanakana.unbind(input); } catch(e) {}
-    }
+    // Unbind any previous kana converter
+    RomajiToKana.unbind(input);
 
     // Set language for IME input
     const deckLang = deck ? (deck.language || '') : '';
@@ -770,9 +768,9 @@ function showQuizCard() {
       input.placeholder = `Type your answer in ${LANG_NAMES[deckLang] || deckLang}...`;
       typeLabel += ` — ${LANG_NAMES[deckLang] || deckLang}`;
 
-      // For Japanese, use wanakana to auto-convert romaji → hiragana
-      if (deckLang === 'ja' && typeof wanakana !== 'undefined') {
-        wanakana.bind(input, { IMEMode: true });
+      // For Japanese, auto-convert romaji → hiragana as you type
+      if (deckLang === 'ja') {
+        RomajiToKana.bind(input);
       }
     } else {
       input.removeAttribute('lang');
@@ -1008,11 +1006,8 @@ function nextCard() {
 }
 
 function endReview() {
-  // Unbind wanakana on exit
-  const input = document.getElementById('free-input');
-  if (typeof wanakana !== 'undefined') {
-    try { wanakana.unbind(input); } catch(e) {}
-  }
+  // Unbind kana converter on exit
+  RomajiToKana.unbind(document.getElementById('free-input'));
 
   const q = state.quiz;
   // Show summary if anything was reviewed
@@ -1297,7 +1292,9 @@ A: [correct answer]`;
         max_tokens: 4096,
         messages: [{
           role: 'user',
-          content: `Generate exactly ${cardCount} quiz/flashcard cards. Extract the most important facts, concepts, definitions, and relationships.
+          content: questionType === 'vocabulary'
+            ? buildVocabPrompt(cardCount, includeWrong, langName, sourceContext)
+            : `Generate exactly ${cardCount} quiz/flashcard cards. Extract the most important facts, concepts, definitions, and relationships.
 
 ${typeInstructions}
 
@@ -1344,6 +1341,37 @@ ${sourceContext}`
     btn.innerHTML = '<span class="ai-sparkle">&#10024;</span> Generate Cards';
     btn.disabled = false;
   }
+}
+
+function buildVocabPrompt(cardCount, includeWrong, langName, sourceContext) {
+  const lang = langName || 'the target language';
+  const wrongPart = includeWrong
+    ? `\nW: [wrong answer 1 in ${lang}] | [wrong answer 2 in ${lang}] | [wrong answer 3 in ${lang}]`
+    : '';
+  const exampleWrong = includeWrong ? '\nW: みず | くうき | ひ' : '';
+
+  return `Generate exactly ${cardCount} vocabulary flashcards for studying ${lang}.
+
+RULES:
+1. Each question MUST be in English asking for a ${lang} word
+2. Each question MUST contain the English word being asked about
+3. Each answer MUST be a single word or short phrase in ${lang} native script
+4. Keep answers to ONE word whenever possible
+
+FORMAT (follow EXACTLY):
+Q: What is fire in ${lang}?
+A: ほのお${exampleWrong}
+
+Q: What is water in ${lang}?
+A: みず${includeWrong ? '\nW: かぜ | つち | ほのお' : ''}
+
+Now generate ${cardCount} cards using this exact format:
+Q: What is [ENGLISH WORD] in ${lang}?
+A: [single ${lang} word]${wrongPart}
+
+${sourceContext ? sourceContext + '\n\nUse vocabulary from the source material above.' : `Use common, useful ${lang} vocabulary words.`}
+
+Output ONLY the cards. No numbering, no explanations.`;
 }
 
 function parseAICards(text, includeWrong) {
