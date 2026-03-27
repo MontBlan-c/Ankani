@@ -162,8 +162,11 @@
               <span class="ai-sparkle">&#10024;</span> AI Generate from Text
             </button>
             <div id="ai-generate-area" style="display:none">
-              <p class="settings-hint">Paste notes, a textbook page, or any text and AI will generate quiz cards from it.</p>
-              <textarea id="ai-source-text" placeholder="Paste your notes, textbook content, or any study material here..." rows="8"></textarea>
+              <p class="settings-hint">Paste notes, a textbook page, or any text and AI will generate quiz cards from it. Optionally specify a subject to guide the AI.</p>
+              <div class="form-group" style="margin-bottom:12px">
+                <input type="text" id="ai-subject" placeholder="Subject (optional) e.g., Biology, Japanese N5, US History...">
+              </div>
+              <textarea id="ai-source-text" placeholder="Paste your notes, textbook content, or any study material here...&#10;&#10;Or leave empty and just enter a subject above — the AI will generate cards from its knowledge!" rows="8"></textarea>
               <div class="ai-gen-options">
                 <div class="ai-gen-option">
                   <label>Number of cards</label>
@@ -175,10 +178,22 @@
                   </select>
                 </div>
                 <div class="ai-gen-option">
-                  <label>Include wrong answers</label>
-                  <select id="ai-include-wrong">
-                    <option value="yes" selected>Yes (for MCQ)</option>
-                    <option value="no">No</option>
+                  <label>Question type</label>
+                  <select id="ai-question-type">
+                    <option value="mixed" selected>Mixed</option>
+                    <option value="definition">Definitions</option>
+                    <option value="factual">Factual / Recall</option>
+                    <option value="conceptual">Conceptual</option>
+                    <option value="fill-blank">Fill in the Blank</option>
+                    <option value="true-false">True or False</option>
+                  </select>
+                </div>
+                <div class="ai-gen-option">
+                  <label>Card mode</label>
+                  <select id="ai-card-mode">
+                    <option value="mcq" selected>MCQ (with wrong answers)</option>
+                    <option value="free">Free Response</option>
+                    <option value="both">Both</option>
                   </select>
                 </div>
               </div>

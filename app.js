@@ -1164,20 +1164,38 @@ async function aiGenerateCards() {
   }
 
   const sourceText = document.getElementById('ai-source-text').value.trim();
-  if (!sourceText) {
+  const subject = document.getElementById('ai-subject').value.trim();
+
+  if (!sourceText && !subject) {
+    document.getElementById('ai-subject').style.borderColor = 'var(--danger)';
     document.getElementById('ai-source-text').style.borderColor = 'var(--danger)';
-    setTimeout(() => document.getElementById('ai-source-text').style.borderColor = '', 2000);
+    setTimeout(() => {
+      document.getElementById('ai-subject').style.borderColor = '';
+      document.getElementById('ai-source-text').style.borderColor = '';
+    }, 2000);
     return;
   }
 
   const cardCount = document.getElementById('ai-card-count').value;
-  const includeWrong = document.getElementById('ai-include-wrong').value === 'yes';
+  const questionType = document.getElementById('ai-question-type').value;
+  const cardMode = document.getElementById('ai-card-mode').value;
+  const includeWrong = cardMode === 'mcq' || cardMode === 'both';
 
   const btn = document.getElementById('ai-gen-btn');
   btn.innerHTML = '<span class="ai-sparkle">&#10024;</span> Generating...';
   btn.disabled = true;
 
   try {
+    // Build question type instruction
+    const typeInstructions = {
+      mixed: 'Use a mix of question types: definitions, factual recall, conceptual understanding, and fill-in-the-blank.',
+      definition: 'Make all questions ask for definitions. Format: "What is [term]?" with the definition as the answer.',
+      factual: 'Make all questions factual recall. Ask about specific facts, dates, names, numbers, or events.',
+      conceptual: 'Make all questions test conceptual understanding. Ask "why", "how", or "explain" questions with concise answers.',
+      'fill-blank': 'Make all questions fill-in-the-blank. Format: "_____ is the process by which..." with the missing word/phrase as the answer.',
+      'true-false': 'Make all questions true or false statements. The question is a statement, the answer is either "True" or "False".',
+    }[questionType] || '';
+
     const wrongInstructions = includeWrong
       ? `For each card, also generate 3 plausible but incorrect wrong answers.
 Use this exact format per card:
@@ -1187,6 +1205,16 @@ W: [wrong1] | [wrong2] | [wrong3]`
       : `Use this exact format per card:
 Q: [question]
 A: [correct answer]`;
+
+    // Build source context
+    let sourceContext = '';
+    if (sourceText && subject) {
+      sourceContext = `Subject: ${subject}\n\nSource material:\n---\n${sourceText}\n---`;
+    } else if (sourceText) {
+      sourceContext = `Source material:\n---\n${sourceText}\n---`;
+    } else {
+      sourceContext = `Subject: ${subject}\n\nGenerate cards from your knowledge of this subject. Cover the most important and commonly tested concepts.`;
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -1201,15 +1229,15 @@ A: [correct answer]`;
         max_tokens: 4096,
         messages: [{
           role: 'user',
-          content: `Generate exactly ${cardCount} quiz/flashcard cards from the following text. Extract the most important facts, concepts, definitions, and relationships.
+          content: `Generate exactly ${cardCount} quiz/flashcard cards. Extract the most important facts, concepts, definitions, and relationships.
+
+${typeInstructions}
 
 ${wrongInstructions}
 
 IMPORTANT: Output ONLY the cards in the exact format above. No numbering, no extra text, no explanations.
 
----
-${sourceText}
----`
+${sourceContext}`
         }]
       })
     });
@@ -1229,12 +1257,15 @@ ${sourceText}
       throw new Error('Could not parse any cards from AI response');
     }
 
+    // Determine card mode to set per card
+    const perCardMode = cardMode === 'both' ? 'deck' : cardMode;
+
     // Add cards to the form
     cards.forEach(card => {
-      addCardRow(card.front, card.back, card.wrongAnswers || []);
+      addCardRow(card.front, card.back, card.wrongAnswers || [], perCardMode);
     });
 
-    // Clear the textarea and show success
+    // Clear and close
     document.getElementById('ai-source-text').value = '';
     document.getElementById('ai-generate-area').style.display = 'none';
 
