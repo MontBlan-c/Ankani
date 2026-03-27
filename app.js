@@ -99,6 +99,9 @@ function renderDashboard() {
   // SRS stage piles
   renderSRSPiles();
 
+  // Review schedule
+  renderReviewSchedule();
+
   const container = document.getElementById('dashboard-decks');
   const emptyState = document.getElementById('empty-state');
 
@@ -176,6 +179,112 @@ function togglePile(key) {
     el.style.display = '';
     document.querySelector(`.srs-pile-${key}`).classList.add('open');
   }
+}
+
+function renderReviewSchedule() {
+  const container = document.getElementById('review-schedule');
+
+  // Gather all cards with nextReview timestamps
+  const allCards = [];
+  state.decks.forEach(deck => {
+    deck.cards.forEach(card => {
+      if (card.srs.nextReview && card.srs.nextReview > Date.now()) {
+        allCards.push({ card, deckName: deck.name, deckColor: deck.color });
+      }
+    });
+  });
+
+  if (allCards.length === 0) {
+    container.innerHTML = '<div class="schedule-empty">No upcoming reviews scheduled.</div>';
+    return;
+  }
+
+  // Sort by next review time
+  allCards.sort((a, b) => a.card.srs.nextReview - b.card.srs.nextReview);
+
+  // Build timeline buckets
+  const now = Date.now();
+  const buckets = [
+    { label: 'Next Hour', max: now + 3600000, cards: [] },
+    { label: 'Next 4 Hours', max: now + 4 * 3600000, cards: [] },
+    { label: 'Today', max: getEndOfDay(now), cards: [] },
+    { label: 'Tomorrow', max: getEndOfDay(now) + 86400000, cards: [] },
+    { label: 'This Week', max: now + 7 * 86400000, cards: [] },
+    { label: 'This Month', max: now + 30 * 86400000, cards: [] },
+    { label: 'Later', max: Infinity, cards: [] },
+  ];
+
+  allCards.forEach(item => {
+    const t = item.card.srs.nextReview;
+    for (const bucket of buckets) {
+      if (t <= bucket.max) {
+        bucket.cards.push(item);
+        break;
+      }
+    }
+  });
+
+  // Build upcoming timeline
+  const timelineHtml = buckets
+    .filter(b => b.cards.length > 0)
+    .map(b => `
+      <div class="schedule-bucket">
+        <div class="schedule-bucket-header">
+          <span class="schedule-bucket-label">${b.label}</span>
+          <span class="schedule-bucket-count">${b.cards.length} card${b.cards.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="schedule-bucket-bar">
+          <div class="schedule-bucket-fill" style="width:${Math.min(100, (b.cards.length / allCards.length) * 100)}%"></div>
+        </div>
+      </div>
+    `).join('');
+
+  // Build 14-day calendar grid
+  const calendarDays = [];
+  for (let d = 0; d < 14; d++) {
+    const dayStart = getStartOfDay(now) + d * 86400000;
+    const dayEnd = dayStart + 86400000;
+    const count = allCards.filter(item =>
+      item.card.srs.nextReview >= dayStart && item.card.srs.nextReview < dayEnd
+    ).length;
+    const date = new Date(dayStart);
+    const dayLabel = d === 0 ? 'Today' : d === 1 ? 'Tmrw' : date.toLocaleDateString('en', { weekday: 'short' });
+    const dateNum = date.getDate();
+    calendarDays.push({ dayLabel, dateNum, count, isToday: d === 0 });
+  }
+
+  const maxCount = Math.max(...calendarDays.map(d => d.count), 1);
+
+  const calendarHtml = calendarDays.map(day => {
+    const intensity = day.count > 0 ? Math.max(0.2, day.count / maxCount) : 0;
+    return `
+      <div class="cal-day ${day.isToday ? 'cal-today' : ''} ${day.count === 0 ? 'cal-empty' : ''}">
+        <div class="cal-day-label">${day.dayLabel}</div>
+        <div class="cal-day-num">${day.dateNum}</div>
+        <div class="cal-day-dot" style="opacity:${intensity}; transform:scale(${0.5 + intensity * 0.5})">${day.count || ''}</div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="schedule-timeline">${timelineHtml}</div>
+    <div class="schedule-calendar">
+      <div class="schedule-cal-label">14-Day Forecast</div>
+      <div class="cal-grid">${calendarHtml}</div>
+    </div>
+  `;
+}
+
+function getStartOfDay(ts) {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function getEndOfDay(ts) {
+  const d = new Date(ts);
+  d.setHours(23, 59, 59, 999);
+  return d.getTime();
 }
 
 function renderDeckCard(deck) {
