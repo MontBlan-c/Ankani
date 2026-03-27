@@ -99,9 +99,14 @@ const RomajiToKana = (() => {
         continue;
       }
 
-      // If buffer can't start any valid romaji, flush first char as-is
+      // If buffer can't start any valid romaji, flush first char
       if (!couldBeRomaji(buffer)) {
-        result += buffer[0];
+        // If first char is 'n' followed by a consonant, it's ん
+        if (buffer[0] === 'n' && buffer.length > 1 && !'aiueoy'.includes(buffer[1])) {
+          result += 'ん';
+        } else {
+          result += buffer[0];
+        }
         // Re-process from second char
         i -= (buffer.length - 1);
         buffer = '';
@@ -110,9 +115,9 @@ const RomajiToKana = (() => {
     }
 
     // Handle remaining buffer
-    if (buffer === 'n') {
-      result += 'ん';
-    } else if (HIRAGANA_MAP[buffer]) {
+    // Keep trailing 'n' as-is (user might type a vowel next)
+    // Only convert 'n' to 'ん' when we know it's final (handled by the loop above)
+    if (HIRAGANA_MAP[buffer]) {
       result += HIRAGANA_MAP[buffer];
     } else {
       result += buffer;
