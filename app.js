@@ -239,6 +239,36 @@ function renderReviewSchedule() {
       </div>
     `).join('');
 
+  // Build 24-hour hourly breakdown
+  const hourlyData = [];
+  const currentHour = new Date(now);
+  currentHour.setMinutes(0, 0, 0);
+  for (let h = 0; h < 24; h++) {
+    const hourStart = currentHour.getTime() + h * 3600000;
+    const hourEnd = hourStart + 3600000;
+    const count = allCards.filter(item =>
+      item.card.srs.nextReview >= hourStart && item.card.srs.nextReview < hourEnd
+    ).length;
+    const hourDate = new Date(hourStart);
+    const label = hourDate.toLocaleTimeString('en', { hour: 'numeric', hour12: true });
+    const isNow = h === 0;
+    hourlyData.push({ label, count, isNow });
+  }
+  const maxHourly = Math.max(...hourlyData.map(h => h.count), 1);
+
+  const hourlyHtml = hourlyData.map(h => {
+    const barHeight = h.count > 0 ? Math.max(8, (h.count / maxHourly) * 100) : 0;
+    return `
+      <div class="hourly-col ${h.isNow ? 'hourly-now' : ''} ${h.count === 0 ? 'hourly-empty' : ''}">
+        <div class="hourly-count">${h.count || ''}</div>
+        <div class="hourly-bar-wrap">
+          <div class="hourly-bar" style="height:${barHeight}%"></div>
+        </div>
+        <div class="hourly-label">${h.label}</div>
+      </div>
+    `;
+  }).join('');
+
   // Build 14-day calendar grid
   const calendarDays = [];
   for (let d = 0; d < 14; d++) {
@@ -267,10 +297,16 @@ function renderReviewSchedule() {
   }).join('');
 
   container.innerHTML = `
-    <div class="schedule-timeline">${timelineHtml}</div>
-    <div class="schedule-calendar">
-      <div class="schedule-cal-label">14-Day Forecast</div>
-      <div class="cal-grid">${calendarHtml}</div>
+    <div class="schedule-hourly">
+      <div class="schedule-cal-label">Next 24 Hours</div>
+      <div class="hourly-grid">${hourlyHtml}</div>
+    </div>
+    <div class="schedule-bottom">
+      <div class="schedule-timeline">${timelineHtml}</div>
+      <div class="schedule-calendar">
+        <div class="schedule-cal-label">14-Day Forecast</div>
+        <div class="cal-grid">${calendarHtml}</div>
+      </div>
     </div>
   `;
 }
