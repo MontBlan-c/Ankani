@@ -19,6 +19,11 @@ let state = {
   }
 };
 
+const LANG_NAMES = {
+  ja: 'Japanese', ko: 'Korean', zh: 'Chinese', ar: 'Arabic',
+  hi: 'Hindi', ru: 'Russian', th: 'Thai', he: 'Hebrew', el: 'Greek',
+};
+
 // --- Persistence ---
 function saveState() {
   localStorage.setItem('ankani_decks', JSON.stringify(state.decks));
@@ -180,7 +185,7 @@ function renderDeckCard(deck) {
     <div class="deck-card" onclick="navigate('deck-detail', '${deck.id}')">
       <div class="deck-card-accent" style="background: ${deck.color}"></div>
       <div class="deck-card-body">
-        <div class="deck-card-name">${esc(deck.name)}</div>
+        <div class="deck-card-name">${esc(deck.name)}${deck.language ? ` <span class="deck-lang-badge">${LANG_NAMES[deck.language] || deck.language}</span>` : ''}</div>
         <div class="deck-card-desc">${esc(deck.description || '')}</div>
         <div class="deck-card-footer">
           <div class="deck-card-stat due"><strong>${due}</strong> due</div>
@@ -354,6 +359,9 @@ function initCreateForm(deckId) {
     b.classList.toggle('active', b.dataset.mode === state.quizMode);
   });
 
+  // Language
+  document.getElementById('deck-language').value = deck ? (deck.language || '') : '';
+
   // Cards
   const container = document.getElementById('card-rows');
   container.innerHTML = '';
@@ -497,6 +505,7 @@ function saveDeck() {
   }
 
   const description = document.getElementById('deck-desc').value.trim();
+  const language = document.getElementById('deck-language').value;
   const rows = document.querySelectorAll('.card-row');
   const cards = [];
   rows.forEach(row => {
@@ -519,6 +528,7 @@ function saveDeck() {
       deck.description = description;
       deck.color = state.selectedColor;
       deck.quizMode = state.quizMode;
+      deck.language = language;
 
       // Merge cards: keep existing SRS data for matching front/back, add new ones
       const existingMap = new Map(deck.cards.map(c => [c.front + '|||' + c.back, c]));
@@ -541,6 +551,7 @@ function saveDeck() {
       description,
       color: state.selectedColor,
       quizMode: state.quizMode,
+      language: language,
       cards: cards.map(c => ({
         id: genId(),
         front: c.front,
@@ -741,11 +752,24 @@ function showQuizCard() {
     document.getElementById('mcq-area').style.display = 'none';
     document.getElementById('free-area').style.display = '';
     const isAI = getGradingMode() === 'ai' && getApiKey();
-    document.getElementById('quiz-card-type').textContent = isAI ? 'Type Your Answer (AI Graded)' : 'Type Your Answer';
+    let typeLabel = isAI ? 'Type Your Answer (AI Graded)' : 'Type Your Answer';
     const input = document.getElementById('free-input');
     input.value = '';
     input.className = 'free-input';
     input.disabled = false;
+
+    // Set language for IME input
+    const deckLang = deck ? (deck.language || '') : '';
+    if (deckLang) {
+      input.setAttribute('lang', deckLang);
+      input.placeholder = `Type your answer in ${LANG_NAMES[deckLang] || deckLang}...`;
+      typeLabel += ` — ${LANG_NAMES[deckLang] || deckLang}`;
+    } else {
+      input.removeAttribute('lang');
+      input.placeholder = 'Type your answer...';
+    }
+
+    document.getElementById('quiz-card-type').textContent = typeLabel;
     const checkBtn = document.getElementById('check-answer-btn');
     checkBtn.style.display = '';
     checkBtn.textContent = 'Check';
@@ -828,6 +852,10 @@ async function checkFreeAnswer() {
 
   const gradingMode = getGradingMode();
   const apiKey = getApiKey();
+  const q = state.quiz;
+  const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
+  const deck = state.decks.find(d => d.id === deckId);
+  const deckLang = deck ? (deck.language || '') : '';
 
   let correct;
 
@@ -838,7 +866,7 @@ async function checkFreeAnswer() {
     input.disabled = true;
 
     try {
-      correct = await aiGradeFreeResponse(card.front, correctAnswer, userAnswer, apiKey);
+      correct = await aiGradeFreeResponse(card.front, correctAnswer, userAnswer, apiKey, deckLang);
     } catch (err) {
       console.error('AI grading failed, falling back to exact match:', err);
       // Fallback to exact match
@@ -864,7 +892,11 @@ async function checkFreeAnswer() {
   showResult(correct);
 }
 
-async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey) {
+async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey, deckLang) {
+  const langContext = deckLang
+    ? `\n\nThis is a ${LANG_NAMES[deckLang] || deckLang} language quiz. Accept answers in any valid script for that language (e.g., hiragana, katakana, kanji for Japanese; hangul for Korean). Also accept romanized/transliterated answers (romaji, pinyin, etc.) if they match the correct pronunciation. Be lenient with diacritics and tone marks.`
+    : '';
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -884,7 +916,7 @@ Question: ${question}
 Correct answer: ${correctAnswer}
 Student's answer: ${userAnswer}
 
-The student's answer doesn't need to match word-for-word. Accept answers that are essentially correct in meaning, even if abbreviated, rephrased, or using synonyms. Be lenient with minor spelling errors. But reject answers that are wrong, incomplete in a meaningful way, or show a misunderstanding.
+The student's answer doesn't need to match word-for-word. Accept answers that are essentially correct in meaning, even if abbreviated, rephrased, or using synonyms. Be lenient with minor spelling errors. But reject answers that are wrong, incomplete in a meaningful way, or show a misunderstanding.${langContext}
 
 Reply with ONLY "CORRECT" or "INCORRECT", nothing else.`
       }]
@@ -1190,8 +1222,19 @@ async function aiGenerateCards() {
 
   try {
     // Build question type instruction
+    const deckLang = document.getElementById('deck-language').value;
+    const langName = LANG_NAMES[deckLang] || '';
+
+    let vocabInstruction = '';
+    if (questionType === 'vocabulary' && langName) {
+      vocabInstruction = `Make all questions vocabulary questions in the WaniKani style. Format: "What is [English word] in ${langName}?" and the answer is a SINGLE word or short phrase in ${langName} script (e.g., hiragana/katakana for Japanese, hangul for Korean, characters for Chinese). Keep answers to one word whenever possible. The answer MUST be in the target language's native script.`;
+    } else if (questionType === 'vocabulary') {
+      vocabInstruction = 'Make all questions vocabulary questions. Format: "What is [word] in [language]?" with the answer being a single word or short phrase in the target language. Keep answers concise — one word when possible.';
+    }
+
     const typeInstructions = {
       mixed: 'Use a mix of question types: definitions, factual recall, conceptual understanding, and fill-in-the-blank.',
+      vocabulary: vocabInstruction,
       definition: 'Make all questions ask for definitions. Format: "What is [term]?" with the definition as the answer.',
       factual: 'Make all questions factual recall. Ask about specific facts, dates, names, numbers, or events.',
       conceptual: 'Make all questions test conceptual understanding. Ask "why", "how", or "explain" questions with concise answers.',

@@ -143,6 +143,22 @@
             <button class="toggle-btn" data-mode="both" onclick="setQuizMode('both')">Both</button>
           </div>
         </div>
+        <div class="form-group">
+          <label>Answer Language</label>
+          <p class="settings-hint">Set a language for free response answers. Your keyboard will switch to that language's input method automatically.</p>
+          <select id="deck-language" class="deck-language-select">
+            <option value="">None (default keyboard)</option>
+            <option value="ja">Japanese (日本語)</option>
+            <option value="ko">Korean (한국어)</option>
+            <option value="zh">Chinese (中文)</option>
+            <option value="ar">Arabic (العربية)</option>
+            <option value="hi">Hindi (हिन्दी)</option>
+            <option value="ru">Russian (Русский)</option>
+            <option value="th">Thai (ไทย)</option>
+            <option value="he">Hebrew (עברית)</option>
+            <option value="el">Greek (Ελληνικά)</option>
+          </select>
+        </div>
 
         <div class="cards-section">
           <div class="section-header">
@@ -181,6 +197,7 @@
                   <label>Question type</label>
                   <select id="ai-question-type">
                     <option value="mixed" selected>Mixed</option>
+                    <option value="vocabulary">Vocabulary</option>
                     <option value="definition">Definitions</option>
                     <option value="factual">Factual / Recall</option>
                     <option value="conceptual">Conceptual</option>
