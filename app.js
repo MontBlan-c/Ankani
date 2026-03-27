@@ -96,6 +96,9 @@ function renderDashboard() {
   document.getElementById('stat-total').textContent = totalCards;
   updateReviewBadge();
 
+  // Practice counts
+  renderPracticeCounts();
+
   // SRS stage piles
   renderSRSPiles();
 
@@ -113,6 +116,76 @@ function renderDashboard() {
 
   emptyState.style.display = 'none';
   container.innerHTML = state.decks.map(deck => renderDeckCard(deck)).join('');
+}
+
+// --- Practice Mode ---
+function getPracticeCards(type) {
+  const cards = [];
+  state.decks.forEach(deck => {
+    deck.cards.forEach(card => {
+      cards.push({ card, deckId: deck.id, deckName: deck.name, deckColor: deck.color });
+    });
+  });
+
+  switch (type) {
+    case 'mistakes':
+      // Cards that were recently answered wrong (low accuracy or stage dropped)
+      return cards.filter(({ card }) =>
+        card.srs.totalReviews > 0 &&
+        (card.srs.correctCount / card.srs.totalReviews) < 0.7
+      ).sort((a, b) =>
+        (a.card.srs.correctCount / Math.max(1, a.card.srs.totalReviews)) -
+        (b.card.srs.correctCount / Math.max(1, b.card.srs.totalReviews))
+      );
+
+    case 'new':
+      // Apprentice-level cards (stages 1-4)
+      return cards.filter(({ card }) =>
+        card.srs.stage >= 1 && card.srs.stage <= 4
+      );
+
+    case 'refresh':
+      // Burned & mature cards (stages 7-9) that might be forgotten
+      return cards.filter(({ card }) =>
+        card.srs.stage >= 7
+      );
+
+    default:
+      return [];
+  }
+}
+
+function renderPracticeCounts() {
+  document.getElementById('practice-mistakes-count').textContent = getPracticeCards('mistakes').length;
+  document.getElementById('practice-new-count').textContent = getPracticeCards('new').length;
+  document.getElementById('practice-refresh-count').textContent = getPracticeCards('refresh').length;
+}
+
+function startPractice(type) {
+  const items = getPracticeCards(type);
+  if (items.length === 0) return;
+
+  // Take up to 20, shuffled
+  const shuffled = [...items].sort(() => Math.random() - 0.5).slice(0, 20);
+
+  state.quiz = {
+    deckId: null,
+    multiDeck: true,
+    cardDeckMap: Object.fromEntries(shuffled.map(item => [item.card.id, item.deckId])),
+    queue: shuffled.map(item => item.card),
+    totalUnique: shuffled.length,
+    completed: 0,
+    currentCard: null,
+    answered: false,
+    wasCorrect: false,
+    totalAnswered: 0,
+    totalCorrect: 0,
+    returnTo: 'dashboard',
+    practiceMode: true,
+  };
+
+  navigate('quiz');
+  showQuizCard();
 }
 
 function renderSRSPiles() {

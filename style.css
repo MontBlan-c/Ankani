@@ -130,6 +130,66 @@ body {
 .stat-total .stat-number { color: var(--purple); }
 .stat-label { color: var(--text-dim); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
 
+/* ===== Practice Cards ===== */
+.practice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.practice-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.06);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.practice-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+.practice-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+.practice-info { flex: 1; min-width: 0; }
+
+.practice-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.practice-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.practice-count {
+  font-size: 1.3rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+}
+
+.practice-mistakes { border-left: 3px solid var(--danger); }
+.practice-mistakes .practice-count { color: var(--danger); }
+.practice-mistakes:hover { border-color: var(--danger); background: rgba(231,76,60,0.06); }
+
+.practice-new { border-left: 3px solid var(--warning); }
+.practice-new .practice-count { color: var(--warning); }
+.practice-new:hover { border-color: var(--warning); background: rgba(243,156,18,0.06); }
+
+.practice-refresh { border-left: 3px solid var(--purple); }
+.practice-refresh .practice-count { color: var(--purple); }
+.practice-refresh:hover { border-color: var(--purple); background: rgba(155,89,182,0.06); }
+
+@media (max-width: 640px) {
+  .practice-grid { grid-template-columns: 1fr; }
+}
+
 /* ===== SRS Piles ===== */
 .srs-piles { margin-bottom: 12px; }
 

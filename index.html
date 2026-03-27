@@ -65,6 +65,36 @@
         </div>
       </div>
       <div class="section-header">
+        <h3>Practice</h3>
+      </div>
+      <div class="practice-grid">
+        <div class="practice-card practice-mistakes" onclick="startPractice('mistakes')">
+          <div class="practice-icon">&#10060;</div>
+          <div class="practice-info">
+            <div class="practice-title">Recent Mistakes</div>
+            <div class="practice-desc">Cards you got wrong recently</div>
+          </div>
+          <div class="practice-count" id="practice-mistakes-count">0</div>
+        </div>
+        <div class="practice-card practice-new" onclick="startPractice('new')">
+          <div class="practice-icon">&#127793;</div>
+          <div class="practice-info">
+            <div class="practice-title">Newly Learned</div>
+            <div class="practice-desc">Apprentice-level cards</div>
+          </div>
+          <div class="practice-count" id="practice-new-count">0</div>
+        </div>
+        <div class="practice-card practice-refresh" onclick="startPractice('refresh')">
+          <div class="practice-icon">&#128161;</div>
+          <div class="practice-info">
+            <div class="practice-title">Refresh Memory</div>
+            <div class="practice-desc">Burned &amp; mature cards you might have forgotten</div>
+          </div>
+          <div class="practice-count" id="practice-refresh-count">0</div>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin-top:36px">
         <h3>SRS Stages</h3>
       </div>
       <div id="srs-piles" class="srs-piles"></div>
