@@ -768,13 +768,22 @@ function showQuizCard() {
       input.placeholder = `Type your answer in ${LANG_NAMES[deckLang] || deckLang}...`;
       typeLabel += ` — ${LANG_NAMES[deckLang] || deckLang}`;
 
-      // For Japanese, auto-convert romaji → hiragana as you type
+      // For Japanese, auto-convert romaji → kana as you type
       if (deckLang === 'ja') {
+        RomajiToKana.setMode('hiragana');
         RomajiToKana.bind(input);
+        // Show kana toggle
+        document.getElementById('kana-toggle').style.display = '';
+        document.querySelectorAll('.kana-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.kana === 'hiragana');
+        });
+      } else {
+        document.getElementById('kana-toggle').style.display = 'none';
       }
     } else {
       input.removeAttribute('lang');
       input.placeholder = 'Type your answer...';
+      document.getElementById('kana-toggle').style.display = 'none';
     }
 
     document.getElementById('quiz-card-type').textContent = typeLabel;
@@ -784,6 +793,27 @@ function showQuizCard() {
     checkBtn.disabled = false;
     input.focus();
   }
+}
+
+function setKanaMode(mode) {
+  RomajiToKana.setMode(mode);
+  document.querySelectorAll('.kana-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.kana === mode);
+  });
+  // Re-convert existing input content
+  const input = document.getElementById('free-input');
+  if (input.value) {
+    // Convert current hiragana ↔ katakana
+    if (mode === 'katakana') {
+      input.value = RomajiToKana.toKatakana(input.value);
+    } else {
+      // Katakana to hiragana
+      input.value = input.value.replace(/[\u30A1-\u30F6]/g, ch =>
+        String.fromCharCode(ch.charCodeAt(0) - 0x60)
+      );
+    }
+  }
+  input.focus();
 }
 
 function getQuizModeForCard(card, deck) {

@@ -121,6 +121,19 @@ const RomajiToKana = (() => {
     return result;
   }
 
+  // Convert hiragana string to katakana
+  function toKatakana(str) {
+    return str.replace(/[\u3041-\u3096]/g, ch =>
+      String.fromCharCode(ch.charCodeAt(0) + 0x60)
+    );
+  }
+
+  // Current mode: 'hiragana' or 'katakana'
+  let mode = 'hiragana';
+
+  function setMode(m) { mode = m; }
+  function getMode() { return mode; }
+
   // Bind to an input element for real-time conversion
   let boundInputs = new Map();
 
@@ -131,7 +144,10 @@ const RomajiToKana = (() => {
       const el = e.target;
       const pos = el.selectionStart;
       const original = el.value;
-      const converted = convert(original);
+      let converted = convert(original);
+      if (mode === 'katakana') {
+        converted = toKatakana(converted);
+      }
 
       if (converted !== original) {
         el.value = converted;
@@ -154,5 +170,5 @@ const RomajiToKana = (() => {
     }
   }
 
-  return { convert, bind, unbind };
+  return { convert, toKatakana, bind, unbind, setMode, getMode };
 })();

@@ -287,6 +287,10 @@
         </div>
         <!-- Free Answer Mode -->
         <div id="free-area" class="answer-area" style="display:none">
+          <div id="kana-toggle" class="kana-toggle" style="display:none">
+            <button class="kana-btn active" data-kana="hiragana" onclick="setKanaMode('hiragana')">あ Hiragana</button>
+            <button class="kana-btn" data-kana="katakana" onclick="setKanaMode('katakana')">ア Katakana</button>
+          </div>
           <input type="text" id="free-input" class="free-input" placeholder="Type your answer..." autocomplete="off">
           <button class="btn btn-primary" id="check-answer-btn" onclick="checkFreeAnswer()">Check</button>
         </div>
