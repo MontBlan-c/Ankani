@@ -1002,6 +1002,8 @@ function showQuizCard() {
     input.value = '';
     input.className = 'free-input';
     input.disabled = false;
+    input.style.height = 'auto';
+    input.rows = 1;
 
     // Unbind previous kana converter
     RomajiToKana.unbind(input);
@@ -1408,10 +1410,11 @@ document.addEventListener('keydown', e => {
       e.preventDefault();
       nextCard();
     }
-  } else if (e.key === 'Enter') {
-    // Before answering, Enter submits free answer
+  } else if (e.key === 'Enter' && !e.shiftKey) {
+    // Before answering, Enter submits free answer (Shift+Enter for newline)
     const freeArea = document.getElementById('free-area');
     if (freeArea.style.display !== 'none') {
+      e.preventDefault();
       checkFreeAnswer();
     }
   }
@@ -2075,6 +2078,14 @@ function parseAICards(text, includeWrong) {
 
   return cards;
 }
+
+// --- Auto-resize textarea ---
+document.addEventListener('input', e => {
+  if (e.target.id === 'free-input') {
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 300) + 'px';
+  }
+});
 
 // --- Init ---
 loadState();

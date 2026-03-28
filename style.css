@@ -1428,6 +1428,13 @@ input[type="text"]:focus, textarea:focus {
   border: 2px solid rgba(255,255,255,0.08);
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
+  resize: none;
+  overflow: hidden;
+  min-height: 52px;
+  max-height: 300px;
+  font-family: inherit;
+  color: var(--text);
+  line-height: 1.5;
 }
 .free-input:focus {
   border-color: var(--accent);
