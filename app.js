@@ -1134,8 +1134,12 @@ function showQuizCard() {
     checkBtn.style.display = '';
     checkBtn.textContent = 'Check';
     checkBtn.disabled = false;
+    document.getElementById('free-idk-btn').style.display = '';
     input.focus();
   }
+
+  // Show MCQ idk button
+  document.getElementById('mcq-idk-btn').style.display = '';
 }
 
 function setQuizGrading(mode) {
@@ -1298,6 +1302,76 @@ async function checkFreeAnswer() {
   btn.style.display = 'none';
 
   showResult(correct, feedback);
+}
+
+async function idkAnswer() {
+  if (state.quiz.answered) return;
+  state.quiz.answered = true;
+
+  const card = state.quiz.currentCard;
+  const q = state.quiz;
+  const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
+  const deck = state.decks.find(d => d.id === deckId);
+  const deckLang = deck ? (deck.language || '') : '';
+
+  q.wasCorrect = false;
+  q.lastMCQAnswer = '';
+  q.totalAnswered++;
+
+  // Disable inputs
+  const freeInput = document.getElementById('free-input');
+  freeInput.disabled = true;
+  document.getElementById('check-answer-btn').style.display = 'none';
+  document.getElementById('free-idk-btn').style.display = 'none';
+  document.getElementById('mcq-idk-btn').style.display = 'none';
+  document.querySelectorAll('.mcq-option').forEach(b => {
+    b.classList.add('disabled');
+    if (b.dataset.correct === 'true') b.classList.add('correct');
+  });
+
+  // Try to get AI explanation
+  let feedback = '';
+  const apiKey = getApiKey();
+  if (apiKey) {
+    try {
+      const personality = buildTutorPrompt();
+      const langContext = deckLang ? `\nThis is a ${LANG_NAMES[deckLang] || deckLang} language quiz.` : '';
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 500,
+          messages: [{
+            role: 'user',
+            content: `The student doesn't know the answer to this question. Teach them!${personality ? '\n\nPERSONALITY: ' + personality : ''}
+
+Question: ${card.front}
+Correct answer: ${card.back}${langContext}
+
+Explain the answer in 2-4 sentences. Help them understand and remember it. Give a helpful tip, mnemonic, or example. Be encouraging — it's okay not to know!`
+          }]
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        feedback = data.content[0].text.trim();
+      }
+    } catch (err) {
+      console.error('AI explanation failed:', err);
+    }
+  }
+
+  if (!feedback) {
+    feedback = `The answer is: ${card.back}. Don't worry — you'll get it next time!`;
+  }
+
+  showResult(false, feedback);
 }
 
 async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey, deckLang) {

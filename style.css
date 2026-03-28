@@ -1450,7 +1450,20 @@ input[type="text"]:focus, textarea:focus {
 .free-input.correct { border-color: var(--success); background: rgba(46,204,113,0.08); }
 .free-input.wrong { border-color: var(--danger); background: rgba(231,76,60,0.08); }
 
-#check-answer-btn { width: 100%; justify-content: center; }
+.free-btn-row {
+  display: flex;
+  gap: 10px;
+}
+.free-check-btn { flex: 1; justify-content: center; }
+
+.idk-btn {
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  width: 100%;
+  justify-content: center;
+}
+.idk-btn:hover { color: var(--warning); }
 
 /* ===== Result Area ===== */
 .result-area { margin-top: 20px; }
