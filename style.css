@@ -905,6 +905,36 @@ input[type="text"]:focus, textarea:focus {
   line-height: 1.4;
 }
 
+.settings-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 20px 0;
+}
+
+.settings-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.toggle-multi .toggle-btn.active {
+  background: rgba(155,89,182,0.15);
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+.form-half { flex: 1; }
+
+/* Make settings modal scrollable */
+#settings-modal .modal-content {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
 .api-key-input-row {
   display: flex;
   gap: 8px;

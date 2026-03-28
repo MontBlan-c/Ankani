@@ -1173,6 +1173,8 @@ async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey, 
     langContext = `\n\nThis is a ${LANG_NAMES[deckLang] || deckLang} language quiz. Accept answers in any valid script for that language. Also accept romanized/transliterated answers if they match the correct pronunciation. Be lenient with diacritics and tone marks.`;
   }
 
+  const personality = buildTutorPrompt();
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -1186,7 +1188,7 @@ async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey, 
       max_tokens: 200,
       messages: [{
         role: 'user',
-        content: `You are a quiz tutor grading an answer and giving helpful feedback.
+        content: `You are a quiz tutor grading an answer and giving helpful feedback.${personality ? '\n\nPERSONALITY: ' + personality : ''}
 
 Question: ${question}
 Correct answer: ${correctAnswer}
@@ -1383,6 +1385,24 @@ function openSettings() {
   document.querySelectorAll('.toggle-btn[data-grading]').forEach(b => {
     b.classList.toggle('active', b.dataset.grading === mode);
   });
+
+  // Load tutor personality
+  const tutor = getTutorPersonality();
+  document.getElementById('tutor-theme').value = tutor.theme || '';
+  document.getElementById('tutor-grade').value = tutor.grade || '';
+  document.getElementById('tutor-name').value = tutor.name || '';
+
+  document.querySelectorAll('.toggle-btn[data-strictness]').forEach(b => {
+    b.classList.toggle('active', b.dataset.strictness === (tutor.strictness || 'normal'));
+  });
+  document.querySelectorAll('.toggle-btn[data-kindness]').forEach(b => {
+    b.classList.toggle('active', b.dataset.kindness === (tutor.kindness || 'balanced'));
+  });
+  const styles = tutor.styles || [];
+  document.querySelectorAll('.toggle-multi .toggle-btn[data-style]').forEach(b => {
+    b.classList.toggle('active', styles.includes(b.dataset.style));
+  });
+
   document.getElementById('settings-modal').style.display = '';
 }
 
@@ -1408,7 +1428,96 @@ function saveApiKey() {
   } else {
     localStorage.removeItem('ankani_api_key');
   }
+
+  // Save tutor personality
+  const styles = [];
+  document.querySelectorAll('.toggle-multi .toggle-btn[data-style].active').forEach(b => {
+    styles.push(b.dataset.style);
+  });
+  const activeStrictness = document.querySelector('.toggle-btn[data-strictness].active');
+  const activeKindness = document.querySelector('.toggle-btn[data-kindness].active');
+
+  const tutor = {
+    theme: document.getElementById('tutor-theme').value.trim(),
+    strictness: activeStrictness ? activeStrictness.dataset.strictness : 'normal',
+    kindness: activeKindness ? activeKindness.dataset.kindness : 'balanced',
+    styles: styles,
+    grade: document.getElementById('tutor-grade').value.trim(),
+    name: document.getElementById('tutor-name').value.trim(),
+  };
+  localStorage.setItem('ankani_tutor', JSON.stringify(tutor));
+
   closeSettings();
+}
+
+function getTutorPersonality() {
+  try {
+    return JSON.parse(localStorage.getItem('ankani_tutor') || '{}');
+  } catch (e) { return {}; }
+}
+
+function setTutorOption(type, value) {
+  document.querySelectorAll(`.toggle-btn[data-${type}]`).forEach(b => {
+    b.classList.toggle('active', b.dataset[type] === value);
+  });
+}
+
+function toggleTutorStyle(btn) {
+  btn.classList.toggle('active');
+}
+
+function buildTutorPrompt() {
+  const tutor = getTutorPersonality();
+  const parts = [];
+
+  if (tutor.theme) {
+    parts.push(`You are a tutor with a ${tutor.theme} theme. Stay in character — use references, quotes, vocabulary, and humor from ${tutor.theme}. Speak as if you are a character from that world.`);
+  }
+
+  if (tutor.name) {
+    parts.push(`Address the student as "${tutor.name}".`);
+  }
+
+  const strictnessMap = {
+    lenient: 'Be very lenient with grading — give the benefit of the doubt and accept close answers generously.',
+    normal: '',
+    strict: 'Be strict with grading — only accept answers that are clearly correct. Partial answers should be marked incorrect.',
+    harsh: 'Be a harsh grader — only accept answers that are precise and complete. Be blunt when they get it wrong, but still teach them.',
+  };
+  if (tutor.strictness && strictnessMap[tutor.strictness]) {
+    parts.push(strictnessMap[tutor.strictness]);
+  }
+
+  const kindnessMap = {
+    'tough-love': 'Use a tough-love tone — be direct and no-nonsense, but you genuinely want them to succeed. Don\'t sugarcoat mistakes.',
+    balanced: '',
+    'very-kind': 'Be very kind and gentle — always find something positive to say, even when they get it wrong. Make them feel safe to make mistakes.',
+    cheerleader: 'Be an enthusiastic cheerleader — celebrate every attempt, use lots of encouragement and excitement! Even wrong answers deserve praise for trying.',
+  };
+  if (tutor.kindness && kindnessMap[tutor.kindness]) {
+    parts.push(kindnessMap[tutor.kindness]);
+  }
+
+  if (tutor.styles && tutor.styles.length > 0) {
+    const styleDesc = tutor.styles.map(s => {
+      switch (s) {
+        case 'mnemonics': return 'memory tricks and mnemonics';
+        case 'metaphors': return 'metaphors and analogies';
+        case 'jokes': return 'humor and jokes';
+        case 'examples': return 'real-world examples';
+        case 'stories': return 'short stories or scenarios';
+        case 'visual': return 'emojis and visual descriptions';
+        default: return s;
+      }
+    }).join(', ');
+    parts.push(`Use these teaching techniques: ${styleDesc}.`);
+  }
+
+  if (tutor.grade) {
+    parts.push(`The student is at a ${tutor.grade} level — adjust your vocabulary and explanations accordingly.`);
+  }
+
+  return parts.join(' ');
 }
 
 function toggleApiKeyVisibility() {
@@ -1587,7 +1696,7 @@ async function sendChatMessage() {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,
-        system: `You are a friendly, encouraging tutor helping a student study. Be concise (2-4 sentences per response). ${cardContext}`,
+        system: `You are a tutor helping a student study. Be concise (2-4 sentences per response). ${buildTutorPrompt()} ${cardContext}`,
         messages: chatHistory.map(m => ({ role: m.role, content: m.content })),
       })
     });
