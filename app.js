@@ -1572,7 +1572,15 @@ document.addEventListener('keydown', e => {
       closeChatPanel();
       e.preventDefault();
     }
-    // Let Enter in chat input be handled by the chat handler
+    return;
+  }
+
+  // When dispute modal is open, don't intercept keys
+  if (document.getElementById('dispute-modal').style.display !== 'none') {
+    if (e.key === 'Escape') {
+      closeDisputeModal();
+      e.preventDefault();
+    }
     return;
   }
 
