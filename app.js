@@ -1283,7 +1283,7 @@ async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey, 
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
+      max_tokens: 500,
       messages: [{
         role: 'user',
         content: `You are a quiz tutor grading an answer and giving helpful feedback.${personality ? '\n\nPERSONALITY: ' + personality : ''}
@@ -1882,7 +1882,7 @@ async function aiGenerateWrong(btn) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 200,
+        max_tokens: 300,
         messages: [{
           role: 'user',
           content: `Generate exactly 3 plausible but incorrect answers for this quiz card. They should be believable wrong answers that a student might confuse with the correct one.
