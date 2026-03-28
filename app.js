@@ -190,6 +190,8 @@ function startPractice(type) {
     totalCorrect: 0,
     returnTo: 'dashboard',
     practiceMode: true,
+    history: [],
+    historyIndex: -1,
   };
 
   navigate('quiz');
@@ -521,6 +523,8 @@ function startAllReviews() {
     totalAnswered: 0,
     totalCorrect: 0,
     returnTo: 'reviews',
+    history: [],
+    historyIndex: -1,
   };
 
   navigate('quiz');
@@ -557,6 +561,8 @@ function reviewSingleCard(deckId, cardId) {
     totalCorrect: 0,
     returnTo: state.currentView,
     practiceMode: true,
+    history: [],
+    historyIndex: -1,
   };
 
   navigate('quiz');
@@ -946,6 +952,8 @@ function startReview(returnTo) {
     totalAnswered: 0,
     totalCorrect: 0,
     returnTo: returnTo || 'deck-detail',
+    history: [],
+    historyIndex: -1,
   };
 
   navigate('quiz');
@@ -1348,18 +1356,131 @@ function showResult(correct, feedback) {
     feedbackEl.style.display = 'none';
   }
 
+  // Save to history
+  const userAnswer = document.getElementById('free-input')
+    ? document.getElementById('free-input').value : '';
+  q.history.push({
+    card: { front: card.front, back: card.back, id: card.id },
+    correct,
+    userAnswer,
+    feedback: feedback || '',
+    resultHtml: resultMsg.outerHTML,
+    correctAnswerHtml: correctDisplay.textContent,
+    feedbackHtml: feedbackEl.style.display !== 'none' ? feedbackEl.outerHTML : '',
+    srsHtml: document.getElementById('srs-info').innerHTML,
+  });
+  q.historyIndex = q.history.length - 1;
+
+  // Show prev button if there's history
+  document.getElementById('quiz-prev-btn').style.display = q.history.length > 1 ? '' : 'none';
+
   // Update progress bar
   const pct = (q.completed / q.totalUnique) * 100;
   document.getElementById('quiz-progress-fill').style.width = pct + '%';
   document.getElementById('quiz-progress-text').textContent = `${q.completed} / ${q.totalUnique}`;
 
   resultArea.style.display = '';
+  document.getElementById('history-area').style.display = 'none';
 }
 
 function nextCard() {
-  // Close chat panel when moving to next card
   closeChatPanel();
+  state.quiz.viewingHistory = false;
   showQuizCard();
+}
+
+function quizGoBack() {
+  const q = state.quiz;
+  if (!q.history || q.history.length === 0) return;
+
+  if (!q.viewingHistory) {
+    // First time going back — start from latest history entry
+    q.historyIndex = q.history.length - 1;
+    // If we're on the result of the current card, go to the one before
+    if (q.answered) {
+      q.historyIndex = q.history.length - 2;
+    }
+  } else {
+    q.historyIndex = Math.max(0, q.historyIndex - 1);
+  }
+
+  if (q.historyIndex < 0) return;
+  q.viewingHistory = true;
+  showHistoryCard(q.historyIndex);
+}
+
+function quizGoForward() {
+  const q = state.quiz;
+  if (!q.viewingHistory) return;
+
+  q.historyIndex++;
+
+  if (q.historyIndex >= q.history.length) {
+    // Return to current card
+    q.viewingHistory = false;
+    // Re-show current state
+    if (q.answered) {
+      document.getElementById('history-area').style.display = 'none';
+      document.getElementById('result-area').style.display = '';
+      document.getElementById('quiz-question').textContent = q.currentCard.front;
+      document.getElementById('quiz-card-type').textContent = '';
+      document.getElementById('mcq-area').style.display = 'none';
+      document.getElementById('free-area').style.display = 'none';
+    } else {
+      document.getElementById('history-area').style.display = 'none';
+      // showQuizCard was already set up, just un-hide
+    }
+    return;
+  }
+
+  showHistoryCard(q.historyIndex);
+}
+
+function showHistoryCard(index) {
+  const q = state.quiz;
+  const entry = q.history[index];
+  if (!entry) return;
+
+  // Hide active quiz areas, show history
+  document.getElementById('result-area').style.display = 'none';
+  document.getElementById('mcq-area').style.display = 'none';
+  document.getElementById('free-area').style.display = 'none';
+
+  // Set question
+  document.getElementById('quiz-question').textContent = entry.card.front;
+  document.getElementById('quiz-card-type').textContent = `Review (${index + 1} of ${q.history.length})`;
+
+  // Fill history area
+  const historyResult = document.getElementById('history-result-message');
+  historyResult.textContent = entry.correct ? 'Correct!' : 'Incorrect';
+  historyResult.className = 'result-message ' + (entry.correct ? 'correct' : 'wrong');
+
+  const yourAnswer = document.getElementById('history-your-answer');
+  if (entry.userAnswer) {
+    yourAnswer.textContent = `Your answer: ${entry.userAnswer}`;
+    yourAnswer.style.display = '';
+  } else {
+    yourAnswer.style.display = 'none';
+  }
+
+  document.getElementById('history-correct-answer').textContent =
+    entry.correct ? '' : `Correct answer: ${entry.card.back}`;
+
+  const feedbackEl = document.getElementById('history-feedback');
+  if (entry.feedback) {
+    feedbackEl.innerHTML = formatFeedback(entry.feedback);
+    feedbackEl.className = 'ai-feedback ' + (entry.correct ? 'ai-feedback-correct' : 'ai-feedback-wrong');
+    feedbackEl.style.display = '';
+  } else {
+    feedbackEl.style.display = 'none';
+  }
+
+  // Show/hide nav buttons
+  document.getElementById('history-prev-btn').style.display = index > 0 ? '' : 'none';
+  document.getElementById('history-forward-btn').textContent =
+    index < q.history.length - 1 ? 'Next →' : 'Back to Quiz →';
+
+  document.getElementById('history-area').style.display = '';
 }
 
 function endReview() {

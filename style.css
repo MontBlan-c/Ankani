@@ -1504,9 +1504,37 @@ input[type="text"]:focus, textarea:focus {
   color: var(--text-dim);
 }
 
-.next-btn {
-  width: 100%;
+.quiz-nav-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.quiz-nav-buttons .next-btn {
+  flex: 1;
   justify-content: center;
+}
+
+.quiz-nav-btn {
+  white-space: nowrap;
+}
+
+.history-label {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.history-your-answer {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  font-style: italic;
 }
 
 /* ===== AI Chat Panel ===== */

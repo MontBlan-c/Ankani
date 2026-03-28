@@ -353,7 +353,22 @@
           <div class="correct-answer" id="correct-answer-display"></div>
           <div class="ai-feedback" id="ai-feedback" style="display:none"></div>
           <div class="srs-info" id="srs-info"></div>
-          <button class="btn btn-primary btn-large next-btn" onclick="nextCard()">Next</button>
+          <div class="quiz-nav-buttons">
+            <button class="btn btn-ghost quiz-nav-btn" id="quiz-prev-btn" onclick="quizGoBack()" style="display:none">← Previous</button>
+            <button class="btn btn-primary btn-large next-btn" id="quiz-next-btn" onclick="nextCard()">Next</button>
+          </div>
+        </div>
+        <!-- History review (read-only) -->
+        <div id="history-area" class="result-area" style="display:none">
+          <div class="history-label">Reviewing previous answer</div>
+          <div class="result-message" id="history-result-message"></div>
+          <div class="history-your-answer" id="history-your-answer"></div>
+          <div class="correct-answer" id="history-correct-answer"></div>
+          <div class="ai-feedback" id="history-feedback" style="display:none"></div>
+          <div class="quiz-nav-buttons">
+            <button class="btn btn-ghost quiz-nav-btn" id="history-prev-btn" onclick="quizGoBack()">← Previous</button>
+            <button class="btn btn-primary quiz-nav-btn" id="history-forward-btn" onclick="quizGoForward()">Next →</button>
+          </div>
         </div>
       </div>
     </section>
