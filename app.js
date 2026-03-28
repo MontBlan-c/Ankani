@@ -2324,21 +2324,27 @@ A: [correct answer]`;
           role: 'user',
           content: questionType === 'vocabulary'
             ? buildVocabPrompt(cardCount, includeWrong, langName, sourceContext) + extraInstructions
-            : `Generate exactly ${cardCount} quiz/flashcard cards. Extract the most important facts, concepts, definitions, and relationships.
+            : `Generate exactly ${cardCount} quiz/flashcard cards.
 
-CRITICAL QUALITY RULES:
-- Every question MUST be a complete, specific sentence. NEVER write vague fragments like "What is" alone.
-- BAD: "What is" → GOOD: "What is the definition of photosynthesis?"
-- BAD: "A polite word meaning" → GOOD: "Please (a polite word used when making a request)"
-- BAD: "The verb" → GOOD: "What Japanese verb means 'to eat'?"
-- Every answer MUST be specific and complete, not a vague category description.
-- Questions should be self-contained — a student should understand exactly what is being asked without extra context.
+CRITICAL QUALITY RULES — FOLLOW THESE EXACTLY:
+1. Every question MUST be a COMPLETE sentence that makes sense on its own. Test: could a student read JUST the question and know exactly what's being asked?
+   - BAD: "How do you politely say" ← INCOMPLETE, say WHAT?
+   - GOOD: "How do you politely say 'thank you' in Mandarin Chinese?"
+   - BAD: "What is" ← INCOMPLETE
+   - GOOD: "What is the Mandarin Chinese word for 'hello'?"
+   - BAD: "What Mandarin Chinese phrase is u" ← CUT OFF
+   - GOOD: "What Mandarin Chinese phrase means 'sorry' or 'excuse me'?"
+2. Every answer MUST be a complete, specific response — not a vague description.
+3. Every wrong answer (W line) MUST be a complete answer of similar length to the correct answer. No fragments like "means" or partial words.
+4. NEVER use | inside an answer — only use | to SEPARATE wrong answers from each other on the W: line.
+5. If the student mentions they CANNOT read a script (e.g., "can't read hanzi", "no kanji"), ALL answers and wrong answers MUST be in romanization/phonetic form ONLY. NO characters from that script.
+6. Read the student's notes/instructions carefully and follow them.
 
 ${typeInstructions}
 
 ${wrongInstructions}${extraInstructions}
 
-IMPORTANT: Output ONLY the cards in the exact format above. No numbering, no extra text, no explanations.
+IMPORTANT: Output ONLY the cards in the exact format. No numbering, no extra text.
 
 ${sourceContext}`
         }]
