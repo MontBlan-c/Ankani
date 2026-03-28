@@ -976,6 +976,9 @@ function showQuizCard() {
   const deck = state.decks.find(d => d.id === deckId);
   const mode = getQuizModeForCard(card, deck);
 
+  // Store resolved mode so it doesn't change on back/forward
+  q.currentMode = mode;
+
   q.answered = false;
 
   // Update progress — completed out of total unique
@@ -1370,6 +1373,8 @@ function showResult(correct, feedback) {
     correct,
     userAnswer,
     feedback: feedback || '',
+    mode: q.currentMode,
+    grading: q.liveGrading || 'exact',
   });
   q.historyIndex = q.history.length - 1;
   updateNavBar();
@@ -1461,15 +1466,23 @@ function restoreCurrentCard() {
     document.getElementById('mcq-area').style.display = 'none';
     document.getElementById('free-area').style.display = 'none';
   } else if (q.currentCard) {
-    const deckId = q.multiDeck ? q.cardDeckMap[q.currentCard.id] : q.deckId;
-    const deck = state.decks.find(d => d.id === deckId);
-    const mode = getQuizModeForCard(q.currentCard, deck);
+    // Use the stored mode — don't re-randomize
+    const mode = q.currentMode || 'mcq';
     if (mode === 'mcq') {
       document.getElementById('mcq-area').style.display = '';
       document.getElementById('free-area').style.display = 'none';
     } else {
       document.getElementById('mcq-area').style.display = 'none';
       document.getElementById('free-area').style.display = '';
+      // Restore grading toggle
+      const hasApiKey = !!getApiKey();
+      const gradingToggle = document.getElementById('quiz-grading-toggle');
+      if (hasApiKey) {
+        gradingToggle.style.display = '';
+        document.querySelectorAll('.quiz-grade-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.quizgrade === (q.liveGrading || 'exact'));
+        });
+      }
     }
   }
 
