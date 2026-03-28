@@ -1250,6 +1250,69 @@ input[type="text"]:focus, textarea:focus {
   overflow-y: auto;
 }
 
+/* Per-deck schedule inside reviews */
+.reviews-deck-schedule {
+  padding: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.deck-schedule-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 8px;
+}
+
+.deck-schedule-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.deck-schedule-chart {
+  flex: 1;
+  min-width: 0;
+}
+
+.deck-hourly-grid {
+  height: 80px;
+}
+
+.deck-hourly-grid .hourly-bar-wrap { height: 45px; }
+.deck-hourly-grid .hourly-count { font-size: 0.55rem; }
+.deck-hourly-grid .hourly-col { min-width: 22px; }
+
+.deck-schedule-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.deck-schedule-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 50px;
+}
+
+.deck-sched-num {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.deck-sched-label {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 640px) {
+  .deck-schedule-row { flex-direction: column; }
+  .deck-schedule-stats { min-width: auto; }
+}
+
 .reviews-deck-color {
   width: 4px;
   height: 28px;

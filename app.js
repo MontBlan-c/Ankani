@@ -518,6 +518,7 @@ function renderReviews() {
           <span class="reviews-deck-chevron" id="chevron-${deck.id}">&#9660;</span>
         </div>
         <div class="reviews-deck-cards" id="review-deck-${deck.id}" style="display:none">
+          <div class="reviews-deck-schedule">${buildDeckScheduleHtml(deck)}</div>
           <div class="card-list">
             ${dueCards.map(card => {
               const stageClass = SRS.getStageCategory(card.srs.stage);
@@ -562,6 +563,100 @@ function toggleReviewDeck(id) {
     el.style.display = 'none';
     if (chevron) chevron.innerHTML = '&#9660;';
   }
+}
+
+function buildDeckScheduleHtml(deck) {
+  const now = new Date();
+  const endOfHour = new Date(now);
+  endOfHour.setMinutes(59, 59, 999);
+  const endOfHourMs = endOfHour.getTime();
+
+  // Gather this deck's upcoming cards
+  const upcoming = [];
+  const dueNow = [];
+  deck.cards.forEach(card => {
+    if (card.srs.nextReview && card.srs.nextReview > endOfHourMs) {
+      upcoming.push(card);
+    } else if (card.srs.nextReview && card.srs.nextReview <= endOfHourMs && card.srs.nextReview > 0) {
+      dueNow.push(card);
+    } else if (!card.srs.nextReview) {
+      dueNow.push(card);
+    }
+  });
+
+  if (upcoming.length === 0 && dueNow.length === 0) {
+    return '<div class="deck-schedule-empty">No upcoming reviews for this deck.</div>';
+  }
+
+  // Build 12-hour forecast
+  const currentHour = new Date(now);
+  currentHour.setMinutes(0, 0, 0);
+  const hourlyData = [];
+  for (let h = 0; h < 12; h++) {
+    const hourStart = currentHour.getTime() + h * 3600000;
+    const hourEnd = hourStart + 3600000;
+    const count = deck.cards.filter(c =>
+      c.srs.nextReview && c.srs.nextReview >= hourStart && c.srs.nextReview < hourEnd
+    ).length;
+    const hourDate = new Date(hourStart);
+    const label = hourDate.toLocaleTimeString('en', { hour: 'numeric', hour12: true });
+    hourlyData.push({ label, count, isNow: h === 0 });
+  }
+  const maxH = Math.max(...hourlyData.map(h => h.count), 1);
+
+  const barsHtml = hourlyData.map(h => {
+    const barHeight = h.count > 0 ? Math.max(8, (h.count / maxH) * 100) : 0;
+    return `
+      <div class="hourly-col ${h.isNow ? 'hourly-now' : ''} ${h.count === 0 ? 'hourly-empty' : ''}">
+        <div class="hourly-count">${h.count || ''}</div>
+        <div class="hourly-bar-wrap">
+          <div class="hourly-bar" style="height:${barHeight}%"></div>
+        </div>
+        <div class="hourly-label">${h.label}</div>
+      </div>
+    `;
+  }).join('');
+
+  // SRS stage breakdown for this deck
+  const stages = [0, 0, 0, 0, 0]; // apprentice, guru, master, enlightened, burned
+  deck.cards.forEach(c => {
+    if (c.srs.stage >= 1 && c.srs.stage <= 4) stages[0]++;
+    else if (c.srs.stage >= 5 && c.srs.stage <= 6) stages[1]++;
+    else if (c.srs.stage === 7) stages[2]++;
+    else if (c.srs.stage === 8) stages[3]++;
+    else if (c.srs.stage >= 9) stages[4]++;
+  });
+
+  return `
+    <div class="deck-schedule-row">
+      <div class="deck-schedule-chart">
+        <div class="schedule-cal-label">Next 12 Hours</div>
+        <div class="hourly-grid deck-hourly-grid">${barsHtml}</div>
+      </div>
+      <div class="deck-schedule-stats">
+        <div class="deck-schedule-stat">
+          <span class="deck-sched-num" style="color:var(--accent)">${dueNow.length}</span>
+          <span class="deck-sched-label">Due Now</span>
+        </div>
+        <div class="deck-schedule-stat">
+          <span class="deck-sched-num" style="color:var(--text-dim)">${upcoming.length}</span>
+          <span class="deck-sched-label">Upcoming</span>
+        </div>
+        <div class="deck-schedule-stat">
+          <span class="deck-sched-num" style="color:#E91E90">${stages[0]}</span>
+          <span class="deck-sched-label">Apprentice</span>
+        </div>
+        <div class="deck-schedule-stat">
+          <span class="deck-sched-num" style="color:#882D9E">${stages[1]}</span>
+          <span class="deck-sched-label">Guru</span>
+        </div>
+        <div class="deck-schedule-stat">
+          <span class="deck-sched-num" style="color:#294DDB">${stages[2]}</span>
+          <span class="deck-sched-label">Master</span>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function startAllReviews() {
