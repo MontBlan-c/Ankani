@@ -1392,6 +1392,32 @@ input[type="text"]:focus, textarea:focus {
   color: var(--accent);
 }
 
+/* ===== Quiz Grading Toggle ===== */
+.quiz-grading-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  justify-content: center;
+}
+
+.quiz-grade-btn {
+  padding: 5px 14px;
+  background: var(--bg-input);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.quiz-grade-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text-dim); }
+.quiz-grade-btn.active {
+  background: rgba(155,89,182,0.15);
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
 /* ===== Free Answer ===== */
 .free-input {
   width: 100%;

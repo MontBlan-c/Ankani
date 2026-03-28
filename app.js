@@ -995,8 +995,9 @@ function showQuizCard() {
     document.getElementById('mcq-area').style.display = 'none';
     document.getElementById('free-area').style.display = '';
     const cardGrading = card.grading && card.grading !== 'deck' ? card.grading : getGradingMode();
-    const isAI = cardGrading === 'ai' && getApiKey();
-    let typeLabel = isAI ? 'Type Your Answer (AI Graded)' : 'Type Your Answer';
+    const hasApiKey = !!getApiKey();
+    state.quiz.liveGrading = cardGrading; // track current grading for this card
+    let typeLabel = '';
     const input = document.getElementById('free-input');
     input.value = '';
     input.className = 'free-input';
@@ -1010,7 +1011,6 @@ function showQuizCard() {
     if (deckLang) {
       input.setAttribute('lang', deckLang);
       input.placeholder = `Type your answer in ${LANG_NAMES[deckLang] || deckLang}...`;
-      typeLabel += ` — ${LANG_NAMES[deckLang] || deckLang}`;
 
       if (deckLang === 'ja') {
         RomajiToKana.setMode('hiragana');
@@ -1029,6 +1029,22 @@ function showQuizCard() {
       document.getElementById('kana-toggle').style.display = 'none';
     }
 
+    // Show grading toggle if API key exists
+    const gradingToggle = document.getElementById('quiz-grading-toggle');
+    if (hasApiKey) {
+      gradingToggle.style.display = '';
+      document.querySelectorAll('.quiz-grade-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.quizgrade === state.quiz.liveGrading);
+      });
+    } else {
+      gradingToggle.style.display = 'none';
+      state.quiz.liveGrading = 'exact';
+    }
+
+    const isAI = state.quiz.liveGrading === 'ai' && hasApiKey;
+    typeLabel = isAI ? 'Type Your Answer (AI Graded)' : 'Type Your Answer';
+    if (deck && deck.language) typeLabel += ` — ${LANG_NAMES[deck.language] || deck.language}`;
+
     document.getElementById('quiz-card-type').textContent = typeLabel;
     const checkBtn = document.getElementById('check-answer-btn');
     checkBtn.style.display = '';
@@ -1036,6 +1052,21 @@ function showQuizCard() {
     checkBtn.disabled = false;
     input.focus();
   }
+}
+
+function setQuizGrading(mode) {
+  state.quiz.liveGrading = mode;
+  document.querySelectorAll('.quiz-grade-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.quizgrade === mode);
+  });
+  const isAI = mode === 'ai';
+  const card = state.quiz.currentCard;
+  const q = state.quiz;
+  const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
+  const deck = state.decks.find(d => d.id === deckId);
+  let typeLabel = isAI ? 'Type Your Answer (AI Graded)' : 'Type Your Answer';
+  if (deck && deck.language) typeLabel += ` — ${LANG_NAMES[deck.language] || deck.language}`;
+  document.getElementById('quiz-card-type').textContent = typeLabel;
 }
 
 function setKanaMode(mode) {
@@ -1131,15 +1162,14 @@ async function checkFreeAnswer() {
   const userAnswer = input.value.trim();
   const correctAnswer = card.back.trim();
 
-  const globalGrading = getGradingMode();
   const apiKey = getApiKey();
   const q = state.quiz;
   const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
   const deck = state.decks.find(d => d.id === deckId);
   const deckLang = deck ? (deck.language || '') : '';
 
-  // Per-card grading override
-  const cardGrading = card.grading && card.grading !== 'deck' ? card.grading : globalGrading;
+  // Use the live grading toggle from the quiz UI
+  const cardGrading = q.liveGrading || 'exact';
 
   let correct;
   let feedback = '';
