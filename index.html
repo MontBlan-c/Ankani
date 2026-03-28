@@ -253,6 +253,16 @@
                   </select>
                 </div>
               </div>
+              <div class="ai-gen-checks">
+                <label class="ai-check">
+                  <input type="checkbox" id="ai-check-no-visuals" checked>
+                  <span>No visuals — if the source mentions graphs, images, or diagrams, rephrase questions so students don't need to see them</span>
+                </label>
+                <label class="ai-check">
+                  <input type="checkbox" id="ai-check-equal-length" checked>
+                  <span>Equal-length answers — MCQ choices should be similar length (the longest answer shouldn't always be correct)</span>
+                </label>
+              </div>
               <button class="btn btn-primary ai-gen-btn" id="ai-gen-btn" onclick="aiGenerateCards()">
                 <span class="ai-sparkle">&#10024;</span> Generate Cards
               </button>

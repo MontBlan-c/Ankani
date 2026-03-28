@@ -1840,6 +1840,16 @@ async function aiGenerateCards() {
   const cardMode = document.getElementById('ai-card-mode').value;
   const includeWrong = cardMode === 'mcq' || cardMode === 'both';
 
+  // Extra quality checks
+  const extraRules = [];
+  if (document.getElementById('ai-check-no-visuals').checked) {
+    extraRules.push('IMPORTANT: The student cannot see any images, graphs, diagrams, or charts. If the source material references visuals (e.g., "the graph below", "as shown in the figure", "look at the diagram"), you MUST rephrase the question so it can be answered WITHOUT seeing the visual. Describe the relevant data or concept in words instead of referring to the visual.');
+  }
+  if (document.getElementById('ai-check-equal-length').checked) {
+    extraRules.push('IMPORTANT: For multiple choice questions, make ALL answer choices roughly equal in length. The correct answer should NOT be noticeably longer or more detailed than the wrong answers. Avoid the pattern where the longest, most specific answer is always correct. Mix it up.');
+  }
+  const extraInstructions = extraRules.length > 0 ? '\n\n' + extraRules.join('\n\n') : '';
+
   const btn = document.getElementById('ai-gen-btn');
   btn.innerHTML = '<span class="ai-sparkle">&#10024;</span> Generating...';
   btn.disabled = true;
@@ -1906,12 +1916,12 @@ A: [correct answer]`;
         messages: [{
           role: 'user',
           content: questionType === 'vocabulary'
-            ? buildVocabPrompt(cardCount, includeWrong, langName, sourceContext)
+            ? buildVocabPrompt(cardCount, includeWrong, langName, sourceContext) + extraInstructions
             : `Generate exactly ${cardCount} quiz/flashcard cards. Extract the most important facts, concepts, definitions, and relationships.
 
 ${typeInstructions}
 
-${wrongInstructions}
+${wrongInstructions}${extraInstructions}
 
 IMPORTANT: Output ONLY the cards in the exact format above. No numbering, no extra text, no explanations.
 

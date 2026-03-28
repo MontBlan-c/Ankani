@@ -1082,6 +1082,28 @@ input[type="text"]:focus, textarea:focus {
   border-color: var(--accent);
 }
 
+.ai-gen-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ai-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.ai-check input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: var(--purple);
+  flex-shrink: 0;
+}
+
 .ai-gen-btn {
   width: 100%;
   justify-content: center;
