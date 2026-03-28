@@ -1621,12 +1621,20 @@ function showResult(correct, feedback) {
 
   // Show AI feedback if provided
   const feedbackEl = document.getElementById('ai-feedback');
+  const voteEl = document.getElementById('feedback-vote');
   if (feedback) {
     feedbackEl.innerHTML = formatFeedback(feedback);
     feedbackEl.className = 'ai-feedback ' + (correct ? 'ai-feedback-correct' : 'ai-feedback-wrong');
     feedbackEl.style.display = '';
+    // Show vote buttons, reset state
+    voteEl.style.display = '';
+    voteEl.querySelectorAll('.vote-btn').forEach(b => {
+      b.classList.remove('voted');
+      b.disabled = false;
+    });
   } else {
     feedbackEl.style.display = 'none';
+    voteEl.style.display = 'none';
   }
 
   // Save to history
@@ -1785,12 +1793,20 @@ function showHistoryCard(index) {
   document.getElementById('history-correct-answer').textContent = `Correct answer: ${entry.card.back}`;
 
   const feedbackEl = document.getElementById('history-feedback');
+  const histVoteEl = document.getElementById('history-feedback-vote');
   if (entry.feedback) {
     feedbackEl.innerHTML = formatFeedback(entry.feedback);
     feedbackEl.className = 'ai-feedback ' + (entry.correct ? 'ai-feedback-correct' : 'ai-feedback-wrong');
     feedbackEl.style.display = '';
+    histVoteEl.style.display = '';
+    // Show saved vote state if any
+    histVoteEl.querySelectorAll('.vote-btn').forEach(b => {
+      b.classList.toggle('voted', entry.vote === (b.classList.contains('vote-up') ? 'up' : 'down'));
+      b.disabled = !!entry.vote;
+    });
   } else {
     feedbackEl.style.display = 'none';
+    histVoteEl.style.display = 'none';
   }
 
   document.getElementById('history-area').style.display = '';
@@ -1893,6 +1909,27 @@ function esc(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function voteFeedback(vote, btn) {
+  const container = btn.closest('.feedback-vote');
+  // Disable both buttons and highlight the selected one
+  container.querySelectorAll('.vote-btn').forEach(b => {
+    b.disabled = true;
+    b.classList.remove('voted');
+  });
+  btn.classList.add('voted');
+
+  // Save vote to current history entry
+  const q = state.quiz;
+  if (q && q.history) {
+    // Determine which history entry this belongs to
+    if (container.id === 'history-feedback-vote' && q.viewingHistory) {
+      q.history[q.historyIndex].vote = vote;
+    } else if (q.history.length > 0) {
+      q.history[q.history.length - 1].vote = vote;
+    }
+  }
 }
 
 function formatFeedback(text) {

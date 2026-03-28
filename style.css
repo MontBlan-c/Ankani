@@ -1590,6 +1590,47 @@ input[type="text"]:focus, textarea:focus {
   border: 1px solid rgba(231,76,60,0.2);
   color: #f0a8a0;
 }
+.feedback-vote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.feedback-vote-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.vote-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  font-size: 1.1rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: var(--transition);
+  opacity: 0.6;
+}
+.vote-btn:hover:not(:disabled) {
+  opacity: 1;
+  transform: scale(1.15);
+}
+.vote-btn:disabled { cursor: default; }
+.vote-btn.voted {
+  opacity: 1;
+  transform: scale(1.1);
+}
+.vote-btn.vote-up.voted {
+  border-color: var(--success);
+  background: rgba(46,204,113,0.15);
+}
+.vote-btn.vote-down.voted {
+  border-color: var(--danger);
+  background: rgba(231,76,60,0.15);
+}
+
 .ai-feedback em, .chat-msg em { font-style: italic; }
 .ai-feedback strong, .chat-msg strong { font-weight: 700; }
 .ai-feedback code, .chat-msg code {
