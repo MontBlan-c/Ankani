@@ -20,8 +20,9 @@ let state = {
 };
 
 const LANG_NAMES = {
-  ja: 'Japanese', ko: 'Korean', zh: 'Chinese', ar: 'Arabic',
-  hi: 'Hindi', ru: 'Russian', th: 'Thai', he: 'Hebrew', el: 'Greek',
+  en: 'English', ja: 'Japanese', ko: 'Korean', zh: 'Chinese',
+  es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', it: 'Italian',
+  ar: 'Arabic', hi: 'Hindi', ru: 'Russian', th: 'Thai', he: 'Hebrew', el: 'Greek',
 };
 
 // --- Persistence ---
