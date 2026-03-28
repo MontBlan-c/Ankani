@@ -991,9 +991,9 @@ function showQuizCard() {
   document.getElementById('quiz-question').textContent = card.front;
   document.getElementById('quiz-card').style.borderTopColor = deck ? deck.color : 'var(--accent)';
 
-  // Show history review button if there's any history
-  document.getElementById('quiz-history-btn').style.display = q.history.length > 0 ? '' : 'none';
+  // Update nav bar and hide history
   document.getElementById('history-area').style.display = 'none';
+  updateNavBar();
 
   // Show/hide areas
   document.getElementById('result-area').style.display = 'none';
@@ -1372,9 +1372,7 @@ function showResult(correct, feedback) {
     feedback: feedback || '',
   });
   q.historyIndex = q.history.length - 1;
-
-  // Show prev button if there's history
-  document.getElementById('quiz-prev-btn').style.display = q.history.length > 0 ? '' : 'none';
+  updateNavBar();
 
   // Update progress bar
   const pct = (q.completed / q.totalUnique) * 100;
@@ -1391,64 +1389,81 @@ function nextCard() {
   showQuizCard();
 }
 
-function quizGoBack() {
+// --- Quiz Navigation (Quizlet-style) ---
+// Position: -1 = current card, 0..n = history index
+function quizNavPrev() {
   const q = state.quiz;
-  if (!q.history || q.history.length === 0) return;
-
   if (!q.viewingHistory) {
-    // Entering history mode — start from last entry
-    q.savedCurrentCard = q.currentCard;
-    q.savedAnswered = q.answered;
+    // Currently on the active card — go to latest history
+    if (q.history.length === 0) return;
+    q.viewingHistory = true;
     q.historyIndex = q.history.length - 1;
-  } else if (q.historyIndex > 0) {
-    q.historyIndex--;
   } else {
-    return; // already at oldest
+    if (q.historyIndex <= 0) return;
+    q.historyIndex--;
   }
-
-  q.viewingHistory = true;
   showHistoryCard(q.historyIndex);
+  updateNavBar();
 }
 
-function quizGoForward() {
+function quizNavNext() {
   const q = state.quiz;
-  if (!q.viewingHistory) return;
+  if (!q.viewingHistory) {
+    // On the active card — skip to next card (same as Next after answering)
+    if (q.answered) {
+      nextCard();
+    }
+    // If not answered, forward does nothing (can't skip unanswered)
+    return;
+  }
 
   q.historyIndex++;
-
   if (q.historyIndex >= q.history.length) {
-    // Return to the current card
+    // Return to active card
     q.viewingHistory = false;
     restoreCurrentCard();
+    updateNavBar();
     return;
   }
 
   showHistoryCard(q.historyIndex);
+  updateNavBar();
+}
+
+function updateNavBar() {
+  const q = state.quiz;
+  const prevBtn = document.getElementById('quiz-nav-prev');
+  const nextBtn = document.getElementById('quiz-nav-next');
+  const posLabel = document.getElementById('quiz-nav-position');
+
+  if (q.viewingHistory) {
+    prevBtn.disabled = q.historyIndex <= 0;
+    nextBtn.disabled = false;
+    posLabel.textContent = `${q.historyIndex + 1} of ${q.history.length} reviewed`;
+  } else {
+    prevBtn.disabled = q.history.length === 0;
+    nextBtn.disabled = !q.answered;
+    posLabel.textContent = q.answered ? 'Current' : `${q.history.length} reviewed`;
+  }
 }
 
 function restoreCurrentCard() {
   const q = state.quiz;
   document.getElementById('history-area').style.display = 'none';
 
-  if (q.savedCurrentCard) {
-    document.getElementById('quiz-question').textContent = q.savedCurrentCard.front;
+  if (q.currentCard) {
+    document.getElementById('quiz-question').textContent = q.currentCard.front;
+    document.getElementById('quiz-card-type').textContent = '';
   }
 
-  if (q.savedAnswered) {
-    // Was on a result screen — show it again
+  if (q.answered) {
     document.getElementById('result-area').style.display = '';
     document.getElementById('mcq-area').style.display = 'none';
     document.getElementById('free-area').style.display = 'none';
-    document.getElementById('quiz-card-type').textContent = '';
-    document.getElementById('quiz-prev-btn').style.display = q.history.length > 0 ? '' : 'none';
   } else if (q.currentCard) {
-    // Was on unanswered card — re-show quiz card properly
-    // Need to re-show the input areas without resetting the card
-    document.getElementById('history-area').style.display = 'none';
     const deckId = q.multiDeck ? q.cardDeckMap[q.currentCard.id] : q.deckId;
     const deck = state.decks.find(d => d.id === deckId);
     const mode = getQuizModeForCard(q.currentCard, deck);
-    document.getElementById('quiz-question').textContent = q.currentCard.front;
     if (mode === 'mcq') {
       document.getElementById('mcq-area').style.display = '';
       document.getElementById('free-area').style.display = 'none';
@@ -1456,6 +1471,12 @@ function restoreCurrentCard() {
       document.getElementById('mcq-area').style.display = 'none';
       document.getElementById('free-area').style.display = '';
     }
+  }
+
+  // Restore chat context
+  if (q.currentCard) {
+    chatCardId = q.currentCard.id;
+    chatHistory = [];
   }
 }
 
@@ -1469,7 +1490,7 @@ function showHistoryCard(index) {
   document.getElementById('mcq-area').style.display = 'none';
   document.getElementById('free-area').style.display = 'none';
 
-  // Set question on the quiz card
+  // Set question
   document.getElementById('quiz-question').textContent = entry.card.front;
   document.getElementById('quiz-card-type').textContent = `Review (${index + 1} of ${q.history.length})`;
 
@@ -1478,12 +1499,10 @@ function showHistoryCard(index) {
   historyResult.textContent = entry.correct ? 'Correct!' : 'Incorrect';
   historyResult.className = 'result-message ' + (entry.correct ? 'correct' : 'wrong');
 
-  // Always show what the user answered
   const yourAnswer = document.getElementById('history-your-answer');
   yourAnswer.textContent = `Your answer: ${entry.userAnswer || '(no answer)'}`;
   yourAnswer.style.display = '';
 
-  // Always show the correct answer
   document.getElementById('history-correct-answer').textContent = `Correct answer: ${entry.card.back}`;
 
   const feedbackEl = document.getElementById('history-feedback');
@@ -1495,14 +1514,9 @@ function showHistoryCard(index) {
     feedbackEl.style.display = 'none';
   }
 
-  // Nav buttons — always show both
-  document.getElementById('history-prev-btn').style.display = index > 0 ? '' : 'none';
-  document.getElementById('history-forward-btn').textContent =
-    index < q.history.length - 1 ? 'Next Review →' : 'Back to Quiz →';
-
   document.getElementById('history-area').style.display = '';
 
-  // Update chat context to this history card
+  // Update chat context
   chatCardId = entry.card.id;
   chatHistory = [];
 }
@@ -1549,14 +1563,34 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  // Arrow keys for nav (when not typing in input)
+  const isTyping = document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT');
+  if (e.key === 'ArrowLeft' && !isTyping) {
+    e.preventDefault();
+    quizNavPrev();
+    return;
+  }
+  if (e.key === 'ArrowRight' && !isTyping) {
+    e.preventDefault();
+    quizNavNext();
+    return;
+  }
+
+  // If viewing history, Enter returns to current card
+  if (state.quiz.viewingHistory) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      quizNavNext();
+    }
+    return;
+  }
+
   if (state.quiz.answered) {
-    // After answering, Enter or Space goes to next card
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       nextCard();
     }
   } else if (e.key === 'Enter' && !e.shiftKey) {
-    // Before answering, Enter submits free answer (Shift+Enter for newline)
     const freeArea = document.getElementById('free-area');
     if (freeArea.style.display !== 'none') {
       e.preventDefault();

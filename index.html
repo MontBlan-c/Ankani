@@ -324,7 +324,6 @@
           <span id="quiz-progress-text">0 / 0</span>
         </div>
         <span class="quiz-remaining" id="quiz-remaining"></span>
-        <button class="btn btn-ghost quiz-history-btn" id="quiz-history-btn" onclick="quizGoBack()" style="display:none" title="Review previous answers">← Review</button>
       </div>
       <div class="quiz-container">
         <div class="quiz-card" id="quiz-card">
@@ -354,10 +353,6 @@
           <div class="correct-answer" id="correct-answer-display"></div>
           <div class="ai-feedback" id="ai-feedback" style="display:none"></div>
           <div class="srs-info" id="srs-info"></div>
-          <div class="quiz-nav-buttons">
-            <button class="btn btn-ghost quiz-nav-btn" id="quiz-prev-btn" onclick="quizGoBack()" style="display:none">← Previous</button>
-            <button class="btn btn-primary btn-large next-btn" id="quiz-next-btn" onclick="nextCard()">Next</button>
-          </div>
         </div>
         <!-- History review (read-only) -->
         <div id="history-area" class="result-area" style="display:none">
@@ -366,10 +361,16 @@
           <div class="history-your-answer" id="history-your-answer"></div>
           <div class="correct-answer" id="history-correct-answer"></div>
           <div class="ai-feedback" id="history-feedback" style="display:none"></div>
-          <div class="quiz-nav-buttons">
-            <button class="btn btn-ghost quiz-nav-btn" id="history-prev-btn" onclick="quizGoBack()">← Previous</button>
-            <button class="btn btn-primary quiz-nav-btn" id="history-forward-btn" onclick="quizGoForward()">Next →</button>
-          </div>
+        </div>
+        <!-- Always-visible nav bar -->
+        <div class="quiz-nav-bar">
+          <button class="btn btn-ghost quiz-nav-arrow" id="quiz-nav-prev" onclick="quizNavPrev()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="quiz-nav-position" id="quiz-nav-position"></span>
+          <button class="btn btn-ghost quiz-nav-arrow" id="quiz-nav-next" onclick="quizNavNext()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
         </div>
       </div>
     </section>
