@@ -1211,18 +1211,43 @@ input[type="text"]:focus, textarea:focus {
 
 /* ===== Reviews View ===== */
 .reviews-deck-group {
-  margin-bottom: 28px;
+  margin-bottom: 16px;
 }
 
 .reviews-deck-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   background: var(--bg-card);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.06);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.reviews-deck-header:hover {
+  background: var(--bg-elevated);
+  border-color: rgba(255,255,255,0.1);
+}
+
+.reviews-deck-chevron {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  transition: var(--transition);
+}
+
+.reviews-deck-cards {
+  border: 1px solid rgba(255,255,255,0.06);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  overflow: hidden;
+  animation: slideDown 0.2s ease;
+}
+
+.reviews-deck-cards .card-list {
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .reviews-deck-color {

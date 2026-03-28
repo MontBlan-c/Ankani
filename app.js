@@ -510,27 +510,30 @@ function renderReviews() {
 
     html += `
       <div class="reviews-deck-group">
-        <div class="reviews-deck-header">
+        <div class="reviews-deck-header" onclick="toggleReviewDeck('review-deck-${deck.id}')">
           <div class="reviews-deck-color" style="background:${deck.color}"></div>
           <h3 class="reviews-deck-name">${esc(deck.name)}</h3>
           <span class="reviews-deck-count">${dueCards.length} due</span>
-          <button class="btn btn-secondary btn-sm" onclick="startDeckReview('${deck.id}')">Review Deck</button>
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startDeckReview('${deck.id}')">Review Deck</button>
+          <span class="reviews-deck-chevron" id="chevron-${deck.id}">&#9660;</span>
         </div>
-        <div class="card-list">
-          ${dueCards.map(card => {
-            const stageClass = SRS.getStageCategory(card.srs.stage);
-            const stageName = SRS.STAGE_NAMES[card.srs.stage] || 'New';
-            return `
-              <div class="card-list-item" onclick="showReviewCardInfo('${deck.id}', '${card.id}')">
-                <div class="card-list-srs ${stageClass}"></div>
-                <div class="card-list-front">${esc(card.front)}</div>
-                <div class="card-list-back">${esc(card.back)}</div>
-                <div class="card-list-next">
-                  <span class="srs-stage-badge ${SRS.STAGE_CLASSES[card.srs.stage] || 'new'}" style="font-size:0.65rem">${stageName}</span>
+        <div class="reviews-deck-cards" id="review-deck-${deck.id}" style="display:none">
+          <div class="card-list">
+            ${dueCards.map(card => {
+              const stageClass = SRS.getStageCategory(card.srs.stage);
+              const stageName = SRS.STAGE_NAMES[card.srs.stage] || 'New';
+              return `
+                <div class="card-list-item" onclick="showReviewCardInfo('${deck.id}', '${card.id}')">
+                  <div class="card-list-srs ${stageClass}"></div>
+                  <div class="card-list-front">${esc(card.front)}</div>
+                  <div class="card-list-back">${esc(card.back)}</div>
+                  <div class="card-list-next">
+                    <span class="srs-stage-badge ${SRS.STAGE_CLASSES[card.srs.stage] || 'new'}" style="font-size:0.65rem">${stageName}</span>
+                  </div>
                 </div>
-              </div>
-            `;
-          }).join('')}
+              `;
+            }).join('')}
+          </div>
         </div>
       </div>
     `;
@@ -545,6 +548,19 @@ function renderReviews() {
     reviewsList.innerHTML = html;
     allBtn.style.display = '';
     allBtn.textContent = `Review All Due (${totalDue})`;
+  }
+}
+
+function toggleReviewDeck(id) {
+  const el = document.getElementById(id);
+  const deckId = id.replace('review-deck-', '');
+  const chevron = document.getElementById('chevron-' + deckId);
+  if (el.style.display === 'none') {
+    el.style.display = '';
+    if (chevron) chevron.innerHTML = '&#9650;';
+  } else {
+    el.style.display = 'none';
+    if (chevron) chevron.innerHTML = '&#9660;';
   }
 }
 
