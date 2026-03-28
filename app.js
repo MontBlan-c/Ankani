@@ -32,7 +32,21 @@ function saveState() {
 function loadState() {
   try {
     const data = localStorage.getItem('ankani_decks');
-    if (data) state.decks = JSON.parse(data);
+    if (data) {
+      state.decks = JSON.parse(data);
+      // Fix nextReview values that got corrupted by JSON serialization
+      // (Infinity becomes null, strings need to be numbers)
+      state.decks.forEach(deck => {
+        deck.cards.forEach(card => {
+          if (card.srs) {
+            if (card.srs.nextReview !== null && card.srs.nextReview !== undefined) {
+              card.srs.nextReview = Number(card.srs.nextReview);
+              if (isNaN(card.srs.nextReview)) card.srs.nextReview = null;
+            }
+          }
+        });
+      });
+    }
   } catch (e) {
     console.error('Failed to load state:', e);
   }
@@ -269,15 +283,18 @@ function renderReviewSchedule() {
 
   // Gather all cards with nextReview timestamps
   const allCards = [];
+  const dueNowCards = [];
   state.decks.forEach(deck => {
     deck.cards.forEach(card => {
       if (card.srs.nextReview && card.srs.nextReview > Date.now()) {
         allCards.push({ card, deckName: deck.name, deckColor: deck.color });
+      } else if (card.srs.nextReview && card.srs.nextReview <= Date.now() && card.srs.nextReview > 0) {
+        dueNowCards.push({ card, deckName: deck.name, deckColor: deck.color });
       }
     });
   });
 
-  if (allCards.length === 0) {
+  if (allCards.length === 0 && dueNowCards.length === 0) {
     container.innerHTML = '<div class="schedule-empty">No upcoming reviews scheduled.</div>';
     return;
   }
@@ -308,7 +325,20 @@ function renderReviewSchedule() {
   });
 
   // Build upcoming timeline
-  const timelineHtml = buckets
+  const totalForBar = allCards.length + dueNowCards.length;
+  const dueNowHtml = dueNowCards.length > 0 ? `
+    <div class="schedule-bucket schedule-bucket-due">
+      <div class="schedule-bucket-header">
+        <span class="schedule-bucket-label">Due Now</span>
+        <span class="schedule-bucket-count schedule-due-count">${dueNowCards.length} card${dueNowCards.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="schedule-bucket-bar">
+        <div class="schedule-bucket-fill schedule-due-fill" style="width:${Math.min(100, (dueNowCards.length / totalForBar) * 100)}%"></div>
+      </div>
+    </div>
+  ` : '';
+
+  const timelineHtml = dueNowHtml + buckets
     .filter(b => b.cards.length > 0)
     .map(b => `
       <div class="schedule-bucket">
@@ -317,7 +347,7 @@ function renderReviewSchedule() {
           <span class="schedule-bucket-count">${b.cards.length} card${b.cards.length !== 1 ? 's' : ''}</span>
         </div>
         <div class="schedule-bucket-bar">
-          <div class="schedule-bucket-fill" style="width:${Math.min(100, (b.cards.length / allCards.length) * 100)}%"></div>
+          <div class="schedule-bucket-fill" style="width:${Math.min(100, (b.cards.length / totalForBar) * 100)}%"></div>
         </div>
       </div>
     `).join('');
@@ -2428,3 +2458,11 @@ document.addEventListener('input', e => {
 loadState();
 updateReviewBadge();
 navigate('dashboard');
+
+// Auto-refresh: update badge and dashboard every 60 seconds so reviews appear when due
+setInterval(() => {
+  updateReviewBadge();
+  if (state.currentView === 'dashboard') {
+    renderDashboard();
+  }
+}, 60000);

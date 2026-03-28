@@ -466,6 +466,13 @@ body {
   min-width: 4px;
 }
 
+.schedule-bucket-due {
+  border: 1px solid rgba(231,76,60,0.3);
+  background: rgba(231,76,60,0.06);
+}
+.schedule-due-count { color: var(--danger) !important; font-weight: 700; }
+.schedule-due-fill { background: linear-gradient(90deg, var(--danger), var(--warning)) !important; }
+
 .schedule-calendar {
   min-width: 280px;
   background: var(--bg-card);
