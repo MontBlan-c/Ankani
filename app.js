@@ -629,7 +629,12 @@ function initCreateForm(deckId) {
   });
 
   // Language
-  document.getElementById('deck-language').value = deck ? (deck.language || '') : '';
+  const langSelect = document.getElementById('deck-language');
+  langSelect.value = deck ? (deck.language || '') : '';
+  document.getElementById('deck-learning-lang').checked = deck ? (deck.learningLang !== false) : true;
+  document.getElementById('deck-romanized').checked = deck ? (deck.romanized || false) : false;
+  updateLanguageOptions();
+  langSelect.addEventListener('change', updateLanguageOptions);
 
   // Cards
   const container = document.getElementById('card-rows');
@@ -655,6 +660,11 @@ document.getElementById('color-picker').addEventListener('click', e => {
   swatch.classList.add('active');
   state.selectedColor = swatch.dataset.color;
 });
+
+function updateLanguageOptions() {
+  const lang = document.getElementById('deck-language').value;
+  document.getElementById('language-options').style.display = lang ? '' : 'none';
+}
 
 function setQuizMode(mode) {
   state.quizMode = mode;
@@ -787,6 +797,8 @@ function saveDeck() {
 
   const description = document.getElementById('deck-desc').value.trim();
   const language = document.getElementById('deck-language').value;
+  const learningLang = language ? document.getElementById('deck-learning-lang').checked : false;
+  const romanized = language ? document.getElementById('deck-romanized').checked : false;
   const rows = document.querySelectorAll('.card-row');
   const cards = [];
   rows.forEach(row => {
@@ -812,6 +824,8 @@ function saveDeck() {
       deck.color = state.selectedColor;
       deck.quizMode = state.quizMode;
       deck.language = language;
+      deck.learningLang = learningLang;
+      deck.romanized = romanized;
 
       // Merge cards: keep existing SRS data for matching front/back, add new ones
       const existingMap = new Map(deck.cards.map(c => [c.front + '|||' + c.back, c]));
@@ -836,6 +850,8 @@ function saveDeck() {
       color: state.selectedColor,
       quizMode: state.quizMode,
       language: language,
+      learningLang: learningLang,
+      romanized: romanized,
       cards: cards.map(c => ({
         id: genId(),
         front: c.front,
@@ -2257,6 +2273,12 @@ async function aiGenerateCards() {
   }
   const extraInstructions = extraRules.length > 0 ? '\n\n' + extraRules.join('\n\n') : '';
 
+  // Check deck language learning settings
+  const deckLearningLang = document.getElementById('deck-learning-lang').checked && document.getElementById('deck-language').value;
+  const deckRomanized = document.getElementById('deck-romanized').checked;
+  const deckLangCode = document.getElementById('deck-language').value;
+  const deckLangName = LANG_NAMES[deckLangCode] || '';
+
   const btn = document.getElementById('ai-gen-btn');
   btn.innerHTML = '<span class="ai-sparkle">&#10024;</span> Generating...';
   btn.disabled = true;
@@ -2322,8 +2344,8 @@ A: [correct answer]`;
         max_tokens: 4096,
         messages: [{
           role: 'user',
-          content: questionType === 'vocabulary'
-            ? buildVocabPrompt(cardCount, includeWrong, langName, sourceContext) + extraInstructions
+          content: (questionType === 'vocabulary' || deckLearningLang)
+            ? buildLangPrompt(cardCount, includeWrong, deckLangName, sourceContext, deckRomanized, extraInstructions)
             : `Generate exactly ${cardCount} quiz/flashcard cards.
 
 CRITICAL QUALITY RULES — FOLLOW THESE EXACTLY:
@@ -2399,40 +2421,72 @@ ${sourceContext}`
   }
 }
 
-function buildVocabPrompt(cardCount, includeWrong, langName, sourceContext) {
+function buildLangPrompt(cardCount, includeWrong, langName, sourceContext, romanized, extraInstructions) {
   const lang = langName || 'the target language';
-  const wrongPart = includeWrong
-    ? `\nW: [wrong answer 1 in ${lang}] | [wrong answer 2 in ${lang}] | [wrong answer 3 in ${lang}]`
-    : '';
-  const exampleWrong = includeWrong ? '\nW: みず | くうき | ひ' : '';
 
-  const isJapanese = lang.toLowerCase().includes('japanese');
-  const scriptRule = isJapanese
-    ? `3. Answers MUST be in hiragana ONLY. NEVER use kanji. NEVER use katakana unless it is a loanword. For example: 草 is WRONG, くさ is CORRECT. 水 is WRONG, みず is CORRECT. コンピュータ is OK for "computer" because it is a loanword.`
-    : `3. Each answer MUST be a single word or short phrase in ${lang} native script`;
+  // Determine answer format based on romanization setting
+  let answerFormat, exampleQ1, exampleA1, exampleQ2, exampleA2;
+  let exampleW1 = '', exampleW2 = '';
+  let wrongFormat = '';
 
-  return `Generate exactly ${cardCount} vocabulary flashcards for studying ${lang}.
+  if (romanized) {
+    answerFormat = `Answers MUST be in romanization/phonetic spelling ONLY.
+NEVER use native script characters (no hanzi, no kanji, no hangul, no kana, no Arabic script, etc.).
+Use standard romanization: pinyin for Chinese, romaji for Japanese, revised romanization for Korean, etc.
+Include tone marks for tonal languages (e.g., nǐ hǎo, xièxiè).`;
 
-RULES:
-1. Each question MUST be in English asking for a ${lang} word
-2. Each question MUST contain the English word being asked about
-${scriptRule}
-4. Keep answers to ONE word whenever possible
+    exampleQ1 = `hello`;
+    exampleA1 = lang.includes('Chinese') ? 'nǐ hǎo' : lang.includes('Japanese') ? 'konnichiwa' : 'hello equivalent';
+    exampleQ2 = `thank you`;
+    exampleA2 = lang.includes('Chinese') ? 'xièxiè' : lang.includes('Japanese') ? 'arigatou' : 'thank you equivalent';
 
-FORMAT (follow EXACTLY):
-Q: What is fire in ${lang}?
-A: ほのお${exampleWrong}
+    if (includeWrong) {
+      exampleW1 = lang.includes('Chinese') ? '\nW: zàijiàn | duìbùqǐ | bù kèqi' : '\nW: sayounara | sumimasen | douitashimashite';
+      exampleW2 = lang.includes('Chinese') ? '\nW: nǐ hǎo | duìbùqǐ | zàijiàn' : '\nW: konnichiwa | sumimasen | sayounara';
+      wrongFormat = `\nW: [wrong1 in romanization] | [wrong2 in romanization] | [wrong3 in romanization]`;
+    }
+  } else {
+    const isJapanese = lang.toLowerCase().includes('japanese');
+    answerFormat = isJapanese
+      ? `Answers MUST be in hiragana ONLY. NEVER use kanji. Only use katakana for loanwords.`
+      : `Answers should be in ${lang} native script.`;
 
-Q: What is water in ${lang}?
-A: みず${includeWrong ? '\nW: かぜ | つち | ほのお' : ''}
+    exampleQ1 = 'fire';
+    exampleA1 = isJapanese ? 'ほのお' : 'fire equivalent';
+    exampleQ2 = 'water';
+    exampleA2 = isJapanese ? 'みず' : 'water equivalent';
 
-Now generate ${cardCount} cards using this exact format:
-Q: What is [ENGLISH WORD] in ${lang}?
-A: [single ${lang} word${isJapanese ? ' in hiragana, NO kanji' : ''}]${wrongPart}
+    if (includeWrong) {
+      exampleW1 = isJapanese ? '\nW: みず | くうき | ひ' : '\nW: wrong1 | wrong2 | wrong3';
+      exampleW2 = isJapanese ? '\nW: かぜ | つち | ほのお' : '\nW: wrong1 | wrong2 | wrong3';
+      wrongFormat = `\nW: [wrong1] | [wrong2] | [wrong3]`;
+    }
+  }
 
-${sourceContext ? sourceContext + '\n\nUse vocabulary from the source material above.' : `Use common, useful ${lang} vocabulary words.`}
+  return `Generate exactly ${cardCount} ${lang} vocabulary/phrase flashcards in WaniKani style.
 
-Output ONLY the cards. No numbering, no explanations.`;
+STRICT RULES:
+1. Question = a single English word or short phrase. NO "What is", NO "How do you say". JUST the English meaning.
+2. Answer = the ${lang} translation. ONE word or short phrase only.
+3. ${answerFormat}
+4. Wrong answers (W line) must be complete ${lang} words in the SAME format as the correct answer. No fragments.
+5. Do NOT use | inside any answer. Only use | to separate wrong answers from each other.
+
+FORMAT — follow this EXACTLY:
+Q: ${exampleQ1}
+A: ${exampleA1}${exampleW1}
+
+Q: ${exampleQ2}
+A: ${exampleA2}${exampleW2}
+
+Generate ${cardCount} cards in this format:
+Q: [English word or phrase]
+A: [${lang} translation]${wrongFormat}
+
+${sourceContext ? sourceContext + '\n\nUse vocabulary related to the source material above.' : `Use common, practical ${lang} words and phrases suitable for a beginner.`}
+${extraInstructions}
+
+Output ONLY the cards. No numbering, no explanations, no extra text.`;
 }
 
 function parseAICards(text, includeWrong) {
