@@ -1114,6 +1114,7 @@ async function checkFreeAnswer() {
   const deckLang = deck ? (deck.language || '') : '';
 
   let correct;
+  let feedback = '';
 
   if (gradingMode === 'ai' && apiKey) {
     // AI grading
@@ -1122,10 +1123,11 @@ async function checkFreeAnswer() {
     input.disabled = true;
 
     try {
-      correct = await aiGradeFreeResponse(card.front, correctAnswer, userAnswer, apiKey, deckLang);
+      const result = await aiGradeFreeResponse(card.front, correctAnswer, userAnswer, apiKey, deckLang);
+      correct = result.correct;
+      feedback = result.feedback;
     } catch (err) {
       console.error('AI grading failed, falling back to exact match:', err);
-      // Fallback to exact match
       const ua = userAnswer.toLowerCase();
       const ca = correctAnswer.toLowerCase();
       correct = ua === ca || levenshtein(ua, ca) <= Math.max(1, Math.floor(ca.length * 0.2));
@@ -1145,7 +1147,7 @@ async function checkFreeAnswer() {
   input.classList.add(correct ? 'correct' : 'wrong');
   btn.style.display = 'none';
 
-  showResult(correct);
+  showResult(correct, feedback);
 }
 
 async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey, deckLang) {
@@ -1166,10 +1168,10 @@ async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey, 
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 50,
+      max_tokens: 200,
       messages: [{
         role: 'user',
-        content: `You are grading a quiz answer. Is the student's answer correct?
+        content: `You are grading a quiz answer and giving brief feedback to help the student learn.
 
 Question: ${question}
 Correct answer: ${correctAnswer}
@@ -1177,7 +1179,9 @@ Student's answer: ${userAnswer}
 
 The student's answer doesn't need to match word-for-word. Accept answers that are essentially correct in meaning, even if abbreviated, rephrased, or using synonyms. Be lenient with minor spelling errors. But reject answers that are wrong, incomplete in a meaningful way, or show a misunderstanding.${langContext}
 
-Reply with ONLY "CORRECT" or "INCORRECT", nothing else.`
+Reply in EXACTLY this format (two lines):
+CORRECT or INCORRECT
+[Brief feedback — 1-2 sentences. If correct, mention what they got right or add a helpful tip/mnemonic. If incorrect, explain why it's wrong and help them remember the right answer. Be encouraging.]`
       }]
     })
   });
@@ -1187,11 +1191,16 @@ Reply with ONLY "CORRECT" or "INCORRECT", nothing else.`
   }
 
   const data = await response.json();
-  const verdict = data.content[0].text.trim().toUpperCase();
-  return verdict.includes('CORRECT') && !verdict.includes('INCORRECT');
+  const text = data.content[0].text.trim();
+  const lines = text.split('\n').filter(l => l.trim());
+  const verdictLine = (lines[0] || '').toUpperCase();
+  const correct = verdictLine.includes('CORRECT') && !verdictLine.includes('INCORRECT');
+  const feedback = lines.slice(1).join(' ').trim() || '';
+
+  return { correct, feedback };
 }
 
-function showResult(correct) {
+function showResult(correct, feedback) {
   const q = state.quiz;
   const card = q.currentCard;
   const resultArea = document.getElementById('result-area');
@@ -1253,6 +1262,16 @@ function showResult(correct) {
   if (!q.practiceMode) {
     saveState();
     updateReviewBadge();
+  }
+
+  // Show AI feedback if provided
+  const feedbackEl = document.getElementById('ai-feedback');
+  if (feedback) {
+    feedbackEl.textContent = feedback;
+    feedbackEl.className = 'ai-feedback ' + (correct ? 'ai-feedback-correct' : 'ai-feedback-wrong');
+    feedbackEl.style.display = '';
+  } else {
+    feedbackEl.style.display = 'none';
   }
 
   // Update progress bar
