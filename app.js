@@ -1415,10 +1415,11 @@ function showResult(correct, feedback) {
   q.historyIndex = q.history.length - 1;
   updateNavBar();
 
-  // Update progress bar
+  // Update progress bar and remaining count
   const pct = (q.completed / q.totalUnique) * 100;
   document.getElementById('quiz-progress-fill').style.width = pct + '%';
   document.getElementById('quiz-progress-text').textContent = `${q.completed} / ${q.totalUnique}`;
+  document.getElementById('quiz-remaining').textContent = `${q.queue.length} remaining`;
 
   resultArea.style.display = '';
   document.getElementById('history-area').style.display = 'none';
