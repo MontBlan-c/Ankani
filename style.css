@@ -1689,6 +1689,50 @@ input[type="text"]:focus, textarea:focus {
   .chat-fab { bottom: 16px; right: 16px; }
 }
 
+/* ===== Flag / Dispute ===== */
+.flag-btn {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.flag-btn::before {
+  content: '\26A0';
+}
+.flag-btn:hover { color: var(--warning); }
+
+.dispute-modal-content {
+  max-width: 500px;
+}
+
+.dispute-card-info {
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.dispute-card-info strong {
+  color: var(--text);
+}
+.dispute-card-info .dispute-q,
+.dispute-card-info .dispute-a {
+  display: block;
+  margin-bottom: 4px;
+}
+.dispute-card-info .dispute-q { color: var(--text); }
+.dispute-card-info .dispute-a { color: var(--text-dim); }
+
+.dispute-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.dispute-actions .btn { flex: 1; justify-content: center; }
+
 /* ===== Modal ===== */
 .modal {
   position: fixed;

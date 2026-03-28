@@ -353,6 +353,7 @@
           <div class="correct-answer" id="correct-answer-display"></div>
           <div class="ai-feedback" id="ai-feedback" style="display:none"></div>
           <div class="srs-info" id="srs-info"></div>
+          <button class="btn btn-ghost flag-btn" onclick="openDisputeModal()">Flag Question</button>
         </div>
         <!-- History review (read-only) -->
         <div id="history-area" class="result-area" style="display:none">
@@ -361,6 +362,7 @@
           <div class="history-your-answer" id="history-your-answer"></div>
           <div class="correct-answer" id="history-correct-answer"></div>
           <div class="ai-feedback" id="history-feedback" style="display:none"></div>
+          <button class="btn btn-ghost flag-btn" onclick="openDisputeModal(true)">Flag Question</button>
         </div>
         <!-- Always-visible nav bar -->
         <div class="quiz-nav-bar">
@@ -394,6 +396,32 @@
     </button>
 
     <!-- Card Info Modal -->
+    <!-- Dispute Modal -->
+    <div id="dispute-modal" class="modal" style="display:none">
+      <div class="modal-backdrop" onclick="closeDisputeModal()"></div>
+      <div class="modal-content dispute-modal-content">
+        <div class="modal-header">
+          <h3>Flag Question</h3>
+          <button class="modal-close" onclick="closeDisputeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="dispute-card-info" id="dispute-card-info"></div>
+          <div class="form-group">
+            <label>Why is this question wrong?</label>
+            <textarea id="dispute-reason" placeholder="Explain what's wrong with this question or answer..." rows="3"></textarea>
+          </div>
+          <button class="btn btn-primary" id="dispute-submit-btn" onclick="submitDispute()" style="width:100%;justify-content:center;">Ask AI to Review</button>
+          <div id="dispute-ai-response" style="display:none">
+            <div class="ai-feedback" id="dispute-ai-feedback"></div>
+            <div class="dispute-actions">
+              <button class="btn btn-danger" onclick="confirmDeleteCard()">Delete Card Anyway</button>
+              <button class="btn btn-secondary" onclick="closeDisputeModal()">Keep Card</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="card-modal" class="modal" style="display:none">
       <div class="modal-backdrop" onclick="closeModal()"></div>
       <div class="modal-content">

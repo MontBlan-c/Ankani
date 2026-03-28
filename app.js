@@ -1879,6 +1879,143 @@ Reply with ONLY 3 wrong answers, one per line, nothing else. No numbering, no bu
   }
 }
 
+// --- Flag / Dispute Question ---
+let disputeCard = null;
+let disputeDeckId = null;
+
+function openDisputeModal(fromHistory) {
+  const q = state.quiz;
+  let card;
+
+  if (fromHistory && q.viewingHistory && q.history[q.historyIndex]) {
+    card = q.history[q.historyIndex].card;
+  } else {
+    card = q.currentCard;
+  }
+
+  if (!card) return;
+  disputeCard = card;
+
+  // Find the deck for this card
+  disputeDeckId = q.multiDeck ? (q.cardDeckMap[card.id] || q.deckId) : q.deckId;
+
+  document.getElementById('dispute-card-info').innerHTML = `
+    <span class="dispute-q"><strong>Q:</strong> ${esc(card.front)}</span>
+    <span class="dispute-a"><strong>A:</strong> ${esc(card.back)}</span>
+  `;
+  document.getElementById('dispute-reason').value = '';
+  document.getElementById('dispute-ai-response').style.display = 'none';
+  document.getElementById('dispute-submit-btn').style.display = '';
+  document.getElementById('dispute-submit-btn').disabled = false;
+  document.getElementById('dispute-submit-btn').textContent = 'Ask AI to Review';
+  document.getElementById('dispute-modal').style.display = '';
+  document.getElementById('dispute-reason').focus();
+}
+
+function closeDisputeModal() {
+  document.getElementById('dispute-modal').style.display = 'none';
+  disputeCard = null;
+  disputeDeckId = null;
+}
+
+async function submitDispute() {
+  const reason = document.getElementById('dispute-reason').value.trim();
+  if (!reason) {
+    document.getElementById('dispute-reason').style.borderColor = 'var(--danger)';
+    setTimeout(() => document.getElementById('dispute-reason').style.borderColor = '', 2000);
+    return;
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    // No API key — skip AI review, just offer delete
+    document.getElementById('dispute-submit-btn').style.display = 'none';
+    document.getElementById('dispute-ai-feedback').innerHTML = formatFeedback(
+      'No API key configured for AI review. You can still delete the card if you believe it\'s wrong.'
+    );
+    document.getElementById('dispute-ai-feedback').className = 'ai-feedback ai-feedback-wrong';
+    document.getElementById('dispute-ai-response').style.display = '';
+    return;
+  }
+
+  const btn = document.getElementById('dispute-submit-btn');
+  btn.textContent = 'Reviewing...';
+  btn.disabled = true;
+
+  try {
+    const personality = buildTutorPrompt();
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: `A student is disputing a quiz question and wants to delete it. Review their complaint and give your honest assessment. ${personality}
+
+Question: ${disputeCard.front}
+Listed correct answer: ${disputeCard.back}
+
+Student's complaint: ${reason}
+
+Give your honest assessment in 2-4 sentences:
+- If the student is RIGHT and the question/answer is genuinely wrong, misleading, or poorly worded, say so clearly and recommend deleting it.
+- If the student is WRONG and the question is actually fine, explain why the answer is correct and suggest they keep studying it.
+- If it's debatable, acknowledge both sides.
+
+Be honest, not just agreeable. End with a clear recommendation: "I recommend deleting this card." or "I recommend keeping this card."`
+        }]
+      })
+    });
+
+    if (!response.ok) throw new Error(`API error ${response.status}`);
+
+    const data = await response.json();
+    const reply = data.content[0].text.trim();
+
+    btn.style.display = 'none';
+    document.getElementById('dispute-ai-feedback').innerHTML = formatFeedback(reply);
+    const recommends = reply.toLowerCase().includes('recommend deleting');
+    document.getElementById('dispute-ai-feedback').className =
+      'ai-feedback ' + (recommends ? 'ai-feedback-wrong' : 'ai-feedback-correct');
+    document.getElementById('dispute-ai-response').style.display = '';
+
+  } catch (err) {
+    btn.textContent = 'Ask AI to Review';
+    btn.disabled = false;
+    alert('AI review failed: ' + err.message);
+  }
+}
+
+function confirmDeleteCard() {
+  if (!disputeCard || !disputeDeckId) return;
+
+  const deck = state.decks.find(d => d.id === disputeDeckId);
+  if (deck) {
+    deck.cards = deck.cards.filter(c => c.id !== disputeCard.id);
+    saveState();
+  }
+
+  // Remove from quiz queue if present
+  const q = state.quiz;
+  if (q.queue) {
+    q.queue = q.queue.filter(c => c.id !== disputeCard.id);
+  }
+
+  closeDisputeModal();
+
+  // If we deleted the current card, move to next
+  if (q.currentCard && q.currentCard.id === disputeCard.id) {
+    showQuizCard();
+  }
+}
+
 // --- AI Chat Panel ---
 let chatHistory = [];
 let chatCardId = null; // Track which card the chat is about
