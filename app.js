@@ -77,7 +77,15 @@ function navigate(view, data) {
       break;
     case 'quiz':
       document.getElementById('view-quiz').style.display = '';
+      // Show chat FAB if API key exists
+      document.getElementById('chat-fab').style.display = getApiKey() ? '' : 'none';
       break;
+  }
+
+  // Hide chat FAB and panel on non-quiz views
+  if (view !== 'quiz') {
+    document.getElementById('chat-fab').style.display = 'none';
+    document.getElementById('ai-chat-panel').style.display = 'none';
   }
 }
 
@@ -1488,6 +1496,141 @@ Reply with ONLY 3 wrong answers, one per line, nothing else. No numbering, no bu
     btn.disabled = false;
   }
 }
+
+// --- AI Chat Panel ---
+let chatHistory = [];
+
+function toggleChatPanel() {
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel.style.display === 'none') {
+    openChatPanel();
+  } else {
+    closeChatPanel();
+  }
+}
+
+function openChatPanel() {
+  const panel = document.getElementById('ai-chat-panel');
+  panel.style.display = '';
+  // Reset chat for new card context
+  chatHistory = [];
+  const messages = document.getElementById('chat-messages');
+  const card = state.quiz.currentCard;
+  const greeting = card
+    ? `Ask me anything about this card! I can explain "${card.front}", give examples, mnemonics, or help you understand the answer.`
+    : 'Ask me anything! I can help you understand concepts, give examples, or explain answers.';
+  messages.innerHTML = `<div class="chat-msg chat-ai">${esc(greeting)}</div>`;
+  document.getElementById('chat-input').focus();
+}
+
+function closeChatPanel() {
+  document.getElementById('ai-chat-panel').style.display = 'none';
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+
+  const apiKey = getApiKey();
+  if (!apiKey) { openSettings(); return; }
+
+  const messages = document.getElementById('chat-messages');
+  const btn = document.getElementById('chat-send-btn');
+
+  // Show user message
+  messages.innerHTML += `<div class="chat-msg chat-user">${esc(message)}</div>`;
+  input.value = '';
+
+  // Show loading
+  const loadingId = 'chat-loading-' + Date.now();
+  messages.innerHTML += `<div class="chat-msg chat-ai chat-loading" id="${loadingId}">Thinking...</div>`;
+  messages.scrollTop = messages.scrollHeight;
+  btn.disabled = true;
+
+  // Build context
+  const card = state.quiz.currentCard;
+  const q = state.quiz;
+  const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
+  const deck = state.decks.find(d => d.id === deckId);
+  const deckLang = deck ? (deck.language || '') : '';
+  const langName = deckLang ? (LANG_NAMES[deckLang] || deckLang) : '';
+
+  let cardContext = '';
+  if (card) {
+    cardContext = `The student is studying a flashcard:\nQuestion: ${card.front}\nCorrect answer: ${card.back}`;
+    if (langName) cardContext += `\nLanguage: ${langName}`;
+  }
+
+  // Add to chat history
+  chatHistory.push({ role: 'user', content: message });
+
+  try {
+    const apiMessages = [
+      { role: 'user', content: `You are a friendly, encouraging tutor helping a student study. Be concise (2-4 sentences). ${cardContext}\n\nThe student asks: ${message}` },
+      ...chatHistory.slice(1) // skip first since we built it into the system-like first message
+    ];
+
+    // For multi-turn, build properly
+    const fullMessages = chatHistory.length <= 1
+      ? [{ role: 'user', content: `You are a friendly, encouraging tutor helping a student study. Be concise (2-4 sentences). ${cardContext}\n\nStudent: ${message}` }]
+      : buildChatMessages(cardContext, chatHistory);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        system: `You are a friendly, encouraging tutor helping a student study. Be concise (2-4 sentences per response). ${cardContext}`,
+        messages: chatHistory.map(m => ({ role: m.role, content: m.content })),
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const reply = data.content[0].text.trim();
+
+    chatHistory.push({ role: 'assistant', content: reply });
+
+    // Replace loading with response
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) {
+      loadingEl.className = 'chat-msg chat-ai';
+      loadingEl.textContent = reply;
+      loadingEl.removeAttribute('id');
+    }
+  } catch (err) {
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) {
+      loadingEl.className = 'chat-msg chat-ai';
+      loadingEl.textContent = 'Sorry, something went wrong. Try again.';
+      loadingEl.removeAttribute('id');
+    }
+    // Remove failed message from history
+    chatHistory.pop();
+  }
+
+  btn.disabled = false;
+  messages.scrollTop = messages.scrollHeight;
+  input.focus();
+}
+
+// Enter to send in chat
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement === document.getElementById('chat-input')) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+});
 
 // --- AI Generate Cards from Text ---
 function toggleAIGenerate() {

@@ -335,6 +335,24 @@
       </div>
     </section>
 
+    <!-- AI Chat Panel -->
+    <div id="ai-chat-panel" class="chat-panel" style="display:none">
+      <div class="chat-header">
+        <h3>Ask AI Tutor</h3>
+        <button class="modal-close" onclick="closeChatPanel()">&times;</button>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-msg chat-ai">Ask me anything about this card! I can explain concepts, give examples, or help you understand.</div>
+      </div>
+      <div class="chat-input-area">
+        <input type="text" id="chat-input" class="chat-input" placeholder="Ask a question..." autocomplete="off">
+        <button class="btn btn-primary chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">Send</button>
+      </div>
+    </div>
+    <button class="chat-fab" id="chat-fab" onclick="toggleChatPanel()" style="display:none" title="Ask AI Tutor">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    </button>
+
     <!-- Card Info Modal -->
     <div id="card-modal" class="modal" style="display:none">
       <div class="modal-backdrop" onclick="closeModal()"></div>
