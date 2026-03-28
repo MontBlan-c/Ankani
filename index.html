@@ -327,6 +327,7 @@
       </div>
       <div class="quiz-container">
         <div class="quiz-card" id="quiz-card">
+          <button class="flag-btn flag-btn-top" onclick="openDisputeModal()">Flag Question</button>
           <div class="quiz-card-type" id="quiz-card-type">Meaning</div>
           <div class="quiz-question" id="quiz-question"></div>
         </div>
@@ -353,7 +354,6 @@
           <div class="correct-answer" id="correct-answer-display"></div>
           <div class="ai-feedback" id="ai-feedback" style="display:none"></div>
           <div class="srs-info" id="srs-info"></div>
-          <button class="btn btn-ghost flag-btn" onclick="openDisputeModal()">Flag Question</button>
         </div>
         <!-- History review (read-only) -->
         <div id="history-area" class="result-area" style="display:none">
@@ -362,7 +362,6 @@
           <div class="history-your-answer" id="history-your-answer"></div>
           <div class="correct-answer" id="history-correct-answer"></div>
           <div class="ai-feedback" id="history-feedback" style="display:none"></div>
-          <button class="btn btn-ghost flag-btn" onclick="openDisputeModal(true)">Flag Question</button>
         </div>
         <!-- Always-visible nav bar -->
         <div class="quiz-nav-bar">

@@ -1891,11 +1891,11 @@ Reply with ONLY 3 wrong answers, one per line, nothing else. No numbering, no bu
 let disputeCard = null;
 let disputeDeckId = null;
 
-function openDisputeModal(fromHistory) {
+function openDisputeModal() {
   const q = state.quiz;
   let card;
 
-  if (fromHistory && q.viewingHistory && q.history[q.historyIndex]) {
+  if (q.viewingHistory && q.history[q.historyIndex]) {
     card = q.history[q.historyIndex].card;
   } else {
     card = q.currentCard;

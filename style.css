@@ -1690,18 +1690,27 @@ input[type="text"]:focus, textarea:focus {
 }
 
 /* ===== Flag / Dispute ===== */
-.flag-btn {
-  margin-top: 12px;
-  font-size: 0.8rem;
+.flag-btn-top {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 0.75rem;
   color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: var(--transition);
+  z-index: 2;
 }
-.flag-btn::before {
-  content: '\26A0';
+.flag-btn-top::before {
+  content: '\26A0 ';
 }
-.flag-btn:hover { color: var(--warning); }
+.flag-btn-top:hover {
+  color: var(--warning);
+  background: rgba(243,156,18,0.1);
+}
 
 .dispute-modal-content {
   max-width: 500px;
