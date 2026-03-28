@@ -1136,7 +1136,14 @@ async function checkFreeAnswer() {
     // Exact match with fuzzy tolerance
     const ua = userAnswer.toLowerCase();
     const ca = correctAnswer.toLowerCase();
-    correct = ua === ca || levenshtein(ua, ca) <= Math.max(1, Math.floor(ca.length * 0.2));
+    // Detect questions or "I don't know"
+    const isQuestion = /\?$/.test(userAnswer) || /^(idk|i don'?t know|no idea|help|what|how|why|is it)/i.test(userAnswer);
+    if (isQuestion) {
+      correct = false;
+      feedback = `The answer is: ${correctAnswer}. Try to remember it for next time!`;
+    } else {
+      correct = ua === ca || levenshtein(ua, ca) <= Math.max(1, Math.floor(ca.length * 0.2));
+    }
   }
 
   state.quiz.wasCorrect = correct;
@@ -1171,17 +1178,22 @@ async function aiGradeFreeResponse(question, correctAnswer, userAnswer, apiKey, 
       max_tokens: 200,
       messages: [{
         role: 'user',
-        content: `You are grading a quiz answer and giving brief feedback to help the student learn.
+        content: `You are a quiz tutor grading an answer and giving helpful feedback.
 
 Question: ${question}
 Correct answer: ${correctAnswer}
-Student's answer: ${userAnswer}
+Student's response: ${userAnswer}
 
-The student's answer doesn't need to match word-for-word. Accept answers that are essentially correct in meaning, even if abbreviated, rephrased, or using synonyms. Be lenient with minor spelling errors. But reject answers that are wrong, incomplete in a meaningful way, or show a misunderstanding.${langContext}
+GRADING RULES:
+- The student's answer doesn't need to match word-for-word. Accept answers that are essentially correct in meaning, even if abbreviated, rephrased, or using synonyms. Be lenient with minor spelling errors.
+- If the student asks a question (e.g. "Is it like X?", "What does this mean?", "Can you explain?"), mark INCORRECT but answer their question helpfully and teach them the correct answer.
+- If the student says they don't know (e.g. "I don't know", "idk", "no idea", "?", "help"), mark INCORRECT but kindly explain the answer with a helpful tip or mnemonic to help them remember.
+- If the student gives a wrong answer, explain why it's wrong and help them remember the right one.
+- If the student is correct, confirm what they got right and optionally add a helpful tip.${langContext}
 
 Reply in EXACTLY this format (two lines):
 CORRECT or INCORRECT
-[Brief feedback — 1-2 sentences. If correct, mention what they got right or add a helpful tip/mnemonic. If incorrect, explain why it's wrong and help them remember the right answer. Be encouraging.]`
+[Your feedback — 1-3 sentences. Be encouraging and helpful. If they asked a question, answer it. If they didn't know, teach them.]`
       }]
     })
   });
