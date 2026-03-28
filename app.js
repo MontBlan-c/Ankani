@@ -467,7 +467,22 @@ function renderDecks() {
 
 // --- Review Badge ---
 function updateReviewBadge() {
-  const dueCount = state.decks.reduce((s, d) => s + d.cards.filter(c => SRS.isDue(c)).length, 0);
+  let dueCount = state.decks.reduce((s, d) => s + d.cards.filter(c => SRS.isDue(c)).length, 0);
+
+  // If a review is active, add cards still in the quiz queue + current card
+  // (they may no longer be "due" in the deck after a wrong answer updates SRS)
+  if (state.currentView === 'quiz' && state.quiz && !state.quiz.practiceMode) {
+    const quizCardIds = new Set();
+    if (state.quiz.queue) state.quiz.queue.forEach(c => quizCardIds.add(c.id));
+    if (state.quiz.currentCard && !state.quiz.answered) quizCardIds.add(state.quiz.currentCard.id);
+    // Count quiz cards that aren't already counted as due
+    const alreadyDue = new Set();
+    state.decks.forEach(d => d.cards.filter(c => SRS.isDue(c)).forEach(c => alreadyDue.add(c.id)));
+    quizCardIds.forEach(id => {
+      if (!alreadyDue.has(id)) dueCount++;
+    });
+  }
+
   const badge = document.getElementById('nav-badge-reviews');
   if (dueCount > 0) {
     badge.textContent = dueCount;
