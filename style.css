@@ -903,6 +903,71 @@ input[type="text"]:focus, textarea:focus {
   color: var(--purple);
 }
 
+/* Card audio upload */
+.card-row-audio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-audio-upload {
+  background: none;
+  border: 1px dashed rgba(255,255,255,0.15);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn-audio-upload:hover { border-color: var(--accent); color: var(--accent); }
+
+.audio-status {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-audio-play, .btn-audio-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 4px;
+  transition: var(--transition);
+}
+.btn-audio-play { color: var(--accent); }
+.btn-audio-play:hover { color: var(--success); }
+.btn-audio-remove { color: var(--text-muted); }
+.btn-audio-remove:hover { color: var(--danger); }
+
+/* Quiz audio button */
+.quiz-audio-btn {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  background: rgba(0,170,255,0.15);
+  border: 1px solid rgba(0,170,255,0.3);
+  color: var(--accent);
+  font-size: 1.2rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  z-index: 2;
+}
+.quiz-audio-btn:hover {
+  background: rgba(0,170,255,0.25);
+  transform: scale(1.1);
+}
+
 .card-row-wrong {
   padding-left: 0;
 }

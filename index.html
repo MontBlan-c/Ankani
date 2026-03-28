@@ -214,8 +214,12 @@
         <div class="cards-section">
           <div class="section-header">
             <h3>Cards</h3>
-            <button class="btn btn-secondary" onclick="addCardRow()">+ Add Card</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" onclick="batchUploadAudio()">&#128264; Batch Audio</button>
+              <button class="btn btn-secondary" onclick="addCardRow()">+ Add Card</button>
+            </div>
           </div>
+          <input type="file" id="batch-audio-input" accept="audio/*" multiple style="display:none" onchange="handleBatchAudio(this)">
           <div id="card-rows" class="card-rows"></div>
           <div class="bulk-add">
             <button class="btn btn-ghost" onclick="toggleBulkAdd()">Bulk Add (paste multiple)</button>
@@ -344,9 +348,11 @@
       <div class="quiz-container">
         <div class="quiz-card" id="quiz-card">
           <button class="flag-btn flag-btn-top" onclick="openDisputeModal()">Flag Question</button>
+          <button class="quiz-audio-btn" id="quiz-audio-btn" onclick="playQuizAudio()" style="display:none" title="Play audio">&#128264;</button>
           <div class="quiz-card-type" id="quiz-card-type">Meaning</div>
           <div class="quiz-question" id="quiz-question"></div>
         </div>
+        <audio id="quiz-audio" style="display:none"></audio>
         <!-- MCQ Mode -->
         <div id="mcq-area" class="answer-area">
           <div class="mcq-options" id="mcq-options"></div>

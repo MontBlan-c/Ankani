@@ -767,7 +767,7 @@ function initCreateForm(deckId) {
   const container = document.getElementById('card-rows');
   container.innerHTML = '';
   if (deck && deck.cards.length > 0) {
-    deck.cards.forEach((card, i) => addCardRow(card.front, card.back, card.wrongAnswers || [], card.quizMode || 'deck', card.grading || 'deck'));
+    deck.cards.forEach((card, i) => addCardRow(card.front, card.back, card.wrongAnswers || [], card.quizMode || 'deck', card.grading || 'deck', card.audio || null));
   } else {
     addCardRow();
     addCardRow();
@@ -800,7 +800,7 @@ function setQuizMode(mode) {
   });
 }
 
-function addCardRow(front = '', back = '', wrongAnswers = [], cardMode = 'deck', grading = 'deck') {
+function addCardRow(front = '', back = '', wrongAnswers = [], cardMode = 'deck', grading = 'deck', audio = null) {
   const container = document.getElementById('card-rows');
   const num = container.children.length + 1;
   const row = document.createElement('div');
@@ -824,6 +824,13 @@ function addCardRow(front = '', back = '', wrongAnswers = [], cardMode = 'deck',
           <button class="card-grade-btn ${grading === 'deck' ? 'active' : ''}" data-cardgrading="deck" onclick="setCardGrading(this)">Settings Default</button>
           <button class="card-grade-btn ${grading === 'exact' ? 'active' : ''}" data-cardgrading="exact" onclick="setCardGrading(this)">Exact</button>
           <button class="card-grade-btn ${grading === 'ai' ? 'active' : ''}" data-cardgrading="ai" onclick="setCardGrading(this)">AI Graded</button>
+        </div>
+        <div class="card-row-audio">
+          <button class="btn-audio-upload" onclick="uploadCardAudio(this)">&#128264; Audio</button>
+          <span class="audio-status">${audio ? 'Audio attached' : ''}</span>
+          <button class="btn-audio-play" onclick="previewCardAudio(this)" style="display:${audio ? '' : 'none'}" title="Play">&#9654;</button>
+          <button class="btn-audio-remove" onclick="removeCardAudio(this)" style="display:${audio ? '' : 'none'}" title="Remove">&times;</button>
+          <input type="hidden" class="card-audio-data" value="${audio ? esc(audio) : ''}">
         </div>
         <div class="card-row-wrong" ${cardMode === 'free' ? 'style="display:none"' : ''}>
           <button class="btn-add-wrong" onclick="addWrongAnswer(this)" title="Add a wrong answer choice">+ Wrong Answer</button>
@@ -937,8 +944,10 @@ function saveDeck() {
     const cardMode = activeMode ? activeMode.dataset.cardmode : 'deck';
     const activeGrading = row.querySelector('.card-grade-btn.active');
     const grading = activeGrading ? activeGrading.dataset.cardgrading : 'deck';
+    const audioInput = row.querySelector('.card-audio-data');
+    const audio = audioInput && audioInput.value ? audioInput.value : null;
     if (front && back) {
-      cards.push({ front, back, wrongAnswers, quizMode: cardMode, grading });
+      cards.push({ front, back, wrongAnswers, quizMode: cardMode, grading, audio });
     }
   });
 
@@ -963,9 +972,10 @@ function saveDeck() {
           existing.wrongAnswers = c.wrongAnswers || [];
           existing.quizMode = c.quizMode || 'deck';
           existing.grading = c.grading || 'deck';
+          if (c.audio) existing.audio = c.audio;
           return existing;
         }
-        return { id: genId(), front: c.front, back: c.back, wrongAnswers: c.wrongAnswers || [], quizMode: c.quizMode || 'deck', grading: c.grading || 'deck', srs: SRS.newCardData() };
+        return { id: genId(), front: c.front, back: c.back, wrongAnswers: c.wrongAnswers || [], quizMode: c.quizMode || 'deck', grading: c.grading || 'deck', audio: c.audio || null, srs: SRS.newCardData() };
       });
     }
   } else {
@@ -986,6 +996,7 @@ function saveDeck() {
         wrongAnswers: c.wrongAnswers || [],
         quizMode: c.quizMode || 'deck',
         grading: c.grading || 'deck',
+        audio: c.audio || null,
         srs: SRS.newCardData(),
       })),
       createdAt: Date.now(),
@@ -1172,6 +1183,9 @@ function showQuizCard() {
   // Set question
   document.getElementById('quiz-question').textContent = card.front;
   document.getElementById('quiz-card').style.borderTopColor = deck ? deck.color : 'var(--accent)';
+
+  // Setup audio
+  setupQuizAudio(card, deck, false);
 
   // Update nav bar and hide history
   document.getElementById('history-area').style.display = 'none';
@@ -1658,6 +1672,13 @@ function showResult(correct, feedback) {
   document.getElementById('quiz-progress-fill').style.width = pct + '%';
   document.getElementById('quiz-progress-text').textContent = `${q.completed} / ${q.totalUnique}`;
   document.getElementById('quiz-remaining').textContent = `${q.queue.length} remaining`;
+
+  // Reveal audio after answering (for translation-direction cards)
+  if (q.pendingAudio && card.audio) {
+    const deckId2 = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
+    const deck2 = state.decks.find(d => d.id === deckId2);
+    setupQuizAudio(card, deck2, true);
+  }
 
   resultArea.style.display = '';
   document.getElementById('history-area').style.display = 'none';
@@ -2188,6 +2209,201 @@ Reply with ONLY 3 wrong answers, one per line, nothing else. No numbering, no bu
   } finally {
     btn.textContent = originalText;
     btn.disabled = false;
+  }
+}
+
+// --- Audio Functions ---
+function uploadCardAudio(btn) {
+  const row = btn.closest('.card-row');
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'audio/*';
+  input.onchange = () => {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 512000) {
+      alert('Audio file too large (max 500KB). Use a shorter clip or lower quality.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      row.querySelector('.card-audio-data').value = dataUrl;
+      row.querySelector('.audio-status').textContent = file.name;
+      row.querySelector('.btn-audio-play').style.display = '';
+      row.querySelector('.btn-audio-remove').style.display = '';
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function removeCardAudio(btn) {
+  const row = btn.closest('.card-row');
+  row.querySelector('.card-audio-data').value = '';
+  row.querySelector('.audio-status').textContent = '';
+  row.querySelector('.btn-audio-play').style.display = 'none';
+  row.querySelector('.btn-audio-remove').style.display = 'none';
+}
+
+function previewCardAudio(btn) {
+  const row = btn.closest('.card-row');
+  const dataUrl = row.querySelector('.card-audio-data').value;
+  if (dataUrl) {
+    const audio = new Audio(dataUrl);
+    audio.play().catch(() => {});
+  }
+}
+
+function batchUploadAudio() {
+  document.getElementById('batch-audio-input').click();
+}
+
+async function handleBatchAudio(input) {
+  const files = Array.from(input.files);
+  if (files.length === 0) return;
+
+  const rows = document.querySelectorAll('.card-row');
+  if (rows.length === 0) { alert('Add cards first before uploading audio.'); return; }
+
+  // Read all files as data URLs
+  const audioFiles = [];
+  for (const file of files) {
+    if (file.size > 512000) {
+      alert(`${file.name} is too large (max 500KB). Skipping.`);
+      continue;
+    }
+    const dataUrl = await new Promise(resolve => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.readAsDataURL(file);
+    });
+    audioFiles.push({ name: file.name, dataUrl });
+  }
+
+  if (audioFiles.length === 0) return;
+
+  // If same number of files as cards, assign in order
+  if (audioFiles.length === rows.length) {
+    audioFiles.forEach((af, i) => {
+      const row = rows[i];
+      row.querySelector('.card-audio-data').value = af.dataUrl;
+      row.querySelector('.audio-status').textContent = af.name;
+      row.querySelector('.btn-audio-play').style.display = '';
+      row.querySelector('.btn-audio-remove').style.display = '';
+    });
+    input.value = '';
+    return;
+  }
+
+  // Try AI matching
+  const apiKey = getApiKey();
+  if (apiKey) {
+    const cardList = Array.from(rows).map((row, i) => {
+      const front = row.querySelector('.card-front').value.trim();
+      const back = row.querySelector('.card-back').value.trim();
+      return `${i + 1}. ${front} → ${back}`;
+    }).join('\n');
+
+    const fileList = audioFiles.map((f, i) => `${i + 1}. ${f.name}`).join('\n');
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 500,
+          messages: [{
+            role: 'user',
+            content: `Match these audio filenames to flashcards based on the filename content.
+
+Audio files:
+${fileList}
+
+Cards:
+${cardList}
+
+Reply with ONLY a JSON array of matches: [{"file":1,"card":1},{"file":2,"card":3}]
+Use 1-based indices. Only match files you're confident about. Omit uncertain matches.`
+          }]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.content[0].text.trim();
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const matches = JSON.parse(jsonMatch[0]);
+          matches.forEach(m => {
+            const fileIdx = m.file - 1;
+            const cardIdx = m.card - 1;
+            if (audioFiles[fileIdx] && rows[cardIdx]) {
+              const row = rows[cardIdx];
+              row.querySelector('.card-audio-data').value = audioFiles[fileIdx].dataUrl;
+              row.querySelector('.audio-status').textContent = audioFiles[fileIdx].name;
+              row.querySelector('.btn-audio-play').style.display = '';
+              row.querySelector('.btn-audio-remove').style.display = '';
+            }
+          });
+          input.value = '';
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('AI audio matching failed:', e);
+    }
+  }
+
+  // Fallback: assign in order up to the number of cards
+  audioFiles.slice(0, rows.length).forEach((af, i) => {
+    const row = rows[i];
+    row.querySelector('.card-audio-data').value = af.dataUrl;
+    row.querySelector('.audio-status').textContent = af.name;
+    row.querySelector('.btn-audio-play').style.display = '';
+    row.querySelector('.btn-audio-remove').style.display = '';
+  });
+  input.value = '';
+}
+
+// Quiz audio playback
+function playQuizAudio() {
+  const audioEl = document.getElementById('quiz-audio');
+  if (audioEl.src) {
+    audioEl.currentTime = 0;
+    audioEl.play().catch(() => {});
+  }
+}
+
+function setupQuizAudio(card, deck, afterAnswer) {
+  const audioBtn = document.getElementById('quiz-audio-btn');
+  const audioEl = document.getElementById('quiz-audio');
+
+  if (!card.audio) {
+    audioBtn.style.display = 'none';
+    audioEl.src = '';
+    state.quiz.pendingAudio = false;
+    return;
+  }
+
+  audioEl.src = card.audio;
+  const isTranslation = deck && deck.learningLang;
+
+  if (afterAnswer || !isTranslation) {
+    // Show audio button (recognition direction or after answering)
+    audioBtn.style.display = '';
+    audioEl.play().catch(() => {});
+    state.quiz.pendingAudio = false;
+  } else {
+    // Translation direction — hide until answered
+    audioBtn.style.display = 'none';
+    state.quiz.pendingAudio = true;
   }
 }
 
