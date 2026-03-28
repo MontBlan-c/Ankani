@@ -1289,7 +1289,7 @@ function showResult(correct, feedback) {
   // Show AI feedback if provided
   const feedbackEl = document.getElementById('ai-feedback');
   if (feedback) {
-    feedbackEl.textContent = feedback;
+    feedbackEl.innerHTML = formatFeedback(feedback);
     feedbackEl.className = 'ai-feedback ' + (correct ? 'ai-feedback-correct' : 'ai-feedback-wrong');
     feedbackEl.style.display = '';
   } else {
@@ -1358,6 +1358,18 @@ function esc(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function formatFeedback(text) {
+  // Escape HTML first, then apply markdown-like formatting
+  let s = esc(text);
+  // **bold**
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // *italic*
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // `code`
+  s = s.replace(/`(.+?)`/g, '<code>$1</code>');
+  return s;
 }
 
 function levenshtein(a, b) {
@@ -1714,7 +1726,7 @@ async function sendChatMessage() {
     const loadingEl = document.getElementById(loadingId);
     if (loadingEl) {
       loadingEl.className = 'chat-msg chat-ai';
-      loadingEl.textContent = reply;
+      loadingEl.innerHTML = formatFeedback(reply);
       loadingEl.removeAttribute('id');
     }
   } catch (err) {
