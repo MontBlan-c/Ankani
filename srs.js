@@ -94,7 +94,12 @@ const SRS = {
 
   isDue(card) {
     if (!card.srs.nextReview) return true; // New card
-    return Date.now() >= card.srs.nextReview;
+    // Cards are due if their review time is within the current hour
+    // (like WaniKani — reviews become available at the top of the hour)
+    const now = new Date();
+    const endOfCurrentHour = new Date(now);
+    endOfCurrentHour.setMinutes(59, 59, 999);
+    return endOfCurrentHour.getTime() >= card.srs.nextReview;
   },
 
   // Create a new card SRS data object
