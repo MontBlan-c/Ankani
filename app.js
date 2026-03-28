@@ -282,13 +282,19 @@ function renderReviewSchedule() {
   const container = document.getElementById('review-schedule');
 
   // Gather all cards with nextReview timestamps
+  // Use end-of-current-hour as cutoff (matching isDue logic)
+  const now = new Date();
+  const endOfHour = new Date(now);
+  endOfHour.setMinutes(59, 59, 999);
+  const endOfHourMs = endOfHour.getTime();
+
   const allCards = [];
   const dueNowCards = [];
   state.decks.forEach(deck => {
     deck.cards.forEach(card => {
-      if (card.srs.nextReview && card.srs.nextReview > Date.now()) {
+      if (card.srs.nextReview && card.srs.nextReview > endOfHourMs) {
         allCards.push({ card, deckName: deck.name, deckColor: deck.color });
-      } else if (card.srs.nextReview && card.srs.nextReview <= Date.now() && card.srs.nextReview > 0) {
+      } else if (card.srs.nextReview && card.srs.nextReview <= endOfHourMs && card.srs.nextReview > 0) {
         dueNowCards.push({ card, deckName: deck.name, deckColor: deck.color });
       }
     });
@@ -302,15 +308,15 @@ function renderReviewSchedule() {
   // Sort by next review time
   allCards.sort((a, b) => a.card.srs.nextReview - b.card.srs.nextReview);
 
-  // Build timeline buckets
-  const now = Date.now();
+  // Build timeline buckets (starting after end of current hour)
+  const nowMs = Date.now();
   const buckets = [
-    { label: 'Next Hour', max: now + 3600000, cards: [] },
-    { label: 'Next 4 Hours', max: now + 4 * 3600000, cards: [] },
-    { label: 'Today', max: getEndOfDay(now), cards: [] },
-    { label: 'Tomorrow', max: getEndOfDay(now) + 86400000, cards: [] },
-    { label: 'This Week', max: now + 7 * 86400000, cards: [] },
-    { label: 'This Month', max: now + 30 * 86400000, cards: [] },
+    { label: 'Next Hour', max: endOfHourMs + 3600000, cards: [] },
+    { label: 'Next 4 Hours', max: endOfHourMs + 4 * 3600000, cards: [] },
+    { label: 'Today', max: getEndOfDay(nowMs), cards: [] },
+    { label: 'Tomorrow', max: getEndOfDay(nowMs) + 86400000, cards: [] },
+    { label: 'This Week', max: nowMs + 7 * 86400000, cards: [] },
+    { label: 'This Month', max: nowMs + 30 * 86400000, cards: [] },
     { label: 'Later', max: Infinity, cards: [] },
   ];
 
