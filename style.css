@@ -1519,6 +1519,11 @@ input[type="text"]:focus, textarea:focus {
   white-space: nowrap;
 }
 
+.quiz-history-btn {
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
 .history-label {
   text-align: center;
   font-size: 0.75rem;

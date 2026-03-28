@@ -991,6 +991,10 @@ function showQuizCard() {
   document.getElementById('quiz-question').textContent = card.front;
   document.getElementById('quiz-card').style.borderTopColor = deck ? deck.color : 'var(--accent)';
 
+  // Show history review button if there's any history
+  document.getElementById('quiz-history-btn').style.display = q.history.length > 0 ? '' : 'none';
+  document.getElementById('history-area').style.display = 'none';
+
   // Show/hide areas
   document.getElementById('result-area').style.display = 'none';
 
@@ -1149,6 +1153,7 @@ function selectMCQ(btn) {
 
   const correct = btn.dataset.correct === 'true';
   state.quiz.wasCorrect = correct;
+  state.quiz.lastMCQAnswer = btn.textContent.trim();
   state.quiz.totalAnswered++;
   if (correct) state.quiz.totalCorrect++;
 
@@ -1357,22 +1362,19 @@ function showResult(correct, feedback) {
   }
 
   // Save to history
-  const userAnswer = document.getElementById('free-input')
-    ? document.getElementById('free-input').value : '';
+  const freeInput = document.getElementById('free-input');
+  const freeVisible = document.getElementById('free-area').style.display !== 'none';
+  const userAnswer = freeVisible ? freeInput.value : (q.lastMCQAnswer || '');
   q.history.push({
     card: { front: card.front, back: card.back, id: card.id },
     correct,
     userAnswer,
     feedback: feedback || '',
-    resultHtml: resultMsg.outerHTML,
-    correctAnswerHtml: correctDisplay.textContent,
-    feedbackHtml: feedbackEl.style.display !== 'none' ? feedbackEl.outerHTML : '',
-    srsHtml: document.getElementById('srs-info').innerHTML,
   });
   q.historyIndex = q.history.length - 1;
 
   // Show prev button if there's history
-  document.getElementById('quiz-prev-btn').style.display = q.history.length > 1 ? '' : 'none';
+  document.getElementById('quiz-prev-btn').style.display = q.history.length > 0 ? '' : 'none';
 
   // Update progress bar
   const pct = (q.completed / q.totalUnique) * 100;
@@ -1394,17 +1396,16 @@ function quizGoBack() {
   if (!q.history || q.history.length === 0) return;
 
   if (!q.viewingHistory) {
-    // First time going back — start from latest history entry
+    // Entering history mode — start from last entry
+    q.savedCurrentCard = q.currentCard;
+    q.savedAnswered = q.answered;
     q.historyIndex = q.history.length - 1;
-    // If we're on the result of the current card, go to the one before
-    if (q.answered) {
-      q.historyIndex = q.history.length - 2;
-    }
+  } else if (q.historyIndex > 0) {
+    q.historyIndex--;
   } else {
-    q.historyIndex = Math.max(0, q.historyIndex - 1);
+    return; // already at oldest
   }
 
-  if (q.historyIndex < 0) return;
   q.viewingHistory = true;
   showHistoryCard(q.historyIndex);
 }
@@ -1416,24 +1417,46 @@ function quizGoForward() {
   q.historyIndex++;
 
   if (q.historyIndex >= q.history.length) {
-    // Return to current card
+    // Return to the current card
     q.viewingHistory = false;
-    // Re-show current state
-    if (q.answered) {
-      document.getElementById('history-area').style.display = 'none';
-      document.getElementById('result-area').style.display = '';
-      document.getElementById('quiz-question').textContent = q.currentCard.front;
-      document.getElementById('quiz-card-type').textContent = '';
-      document.getElementById('mcq-area').style.display = 'none';
-      document.getElementById('free-area').style.display = 'none';
-    } else {
-      document.getElementById('history-area').style.display = 'none';
-      // showQuizCard was already set up, just un-hide
-    }
+    restoreCurrentCard();
     return;
   }
 
   showHistoryCard(q.historyIndex);
+}
+
+function restoreCurrentCard() {
+  const q = state.quiz;
+  document.getElementById('history-area').style.display = 'none';
+
+  if (q.savedCurrentCard) {
+    document.getElementById('quiz-question').textContent = q.savedCurrentCard.front;
+  }
+
+  if (q.savedAnswered) {
+    // Was on a result screen — show it again
+    document.getElementById('result-area').style.display = '';
+    document.getElementById('mcq-area').style.display = 'none';
+    document.getElementById('free-area').style.display = 'none';
+    document.getElementById('quiz-card-type').textContent = '';
+    document.getElementById('quiz-prev-btn').style.display = q.history.length > 0 ? '' : 'none';
+  } else if (q.currentCard) {
+    // Was on unanswered card — re-show quiz card properly
+    // Need to re-show the input areas without resetting the card
+    document.getElementById('history-area').style.display = 'none';
+    const deckId = q.multiDeck ? q.cardDeckMap[q.currentCard.id] : q.deckId;
+    const deck = state.decks.find(d => d.id === deckId);
+    const mode = getQuizModeForCard(q.currentCard, deck);
+    document.getElementById('quiz-question').textContent = q.currentCard.front;
+    if (mode === 'mcq') {
+      document.getElementById('mcq-area').style.display = '';
+      document.getElementById('free-area').style.display = 'none';
+    } else {
+      document.getElementById('mcq-area').style.display = 'none';
+      document.getElementById('free-area').style.display = '';
+    }
+  }
 }
 
 function showHistoryCard(index) {
@@ -1441,12 +1464,12 @@ function showHistoryCard(index) {
   const entry = q.history[index];
   if (!entry) return;
 
-  // Hide active quiz areas, show history
+  // Hide active quiz areas
   document.getElementById('result-area').style.display = 'none';
   document.getElementById('mcq-area').style.display = 'none';
   document.getElementById('free-area').style.display = 'none';
 
-  // Set question
+  // Set question on the quiz card
   document.getElementById('quiz-question').textContent = entry.card.front;
   document.getElementById('quiz-card-type').textContent = `Review (${index + 1} of ${q.history.length})`;
 
@@ -1455,16 +1478,13 @@ function showHistoryCard(index) {
   historyResult.textContent = entry.correct ? 'Correct!' : 'Incorrect';
   historyResult.className = 'result-message ' + (entry.correct ? 'correct' : 'wrong');
 
+  // Always show what the user answered
   const yourAnswer = document.getElementById('history-your-answer');
-  if (entry.userAnswer) {
-    yourAnswer.textContent = `Your answer: ${entry.userAnswer}`;
-    yourAnswer.style.display = '';
-  } else {
-    yourAnswer.style.display = 'none';
-  }
+  yourAnswer.textContent = `Your answer: ${entry.userAnswer || '(no answer)'}`;
+  yourAnswer.style.display = '';
 
-  document.getElementById('history-correct-answer').textContent =
-    entry.correct ? '' : `Correct answer: ${entry.card.back}`;
+  // Always show the correct answer
+  document.getElementById('history-correct-answer').textContent = `Correct answer: ${entry.card.back}`;
 
   const feedbackEl = document.getElementById('history-feedback');
   if (entry.feedback) {
@@ -1475,12 +1495,16 @@ function showHistoryCard(index) {
     feedbackEl.style.display = 'none';
   }
 
-  // Show/hide nav buttons
+  // Nav buttons — always show both
   document.getElementById('history-prev-btn').style.display = index > 0 ? '' : 'none';
   document.getElementById('history-forward-btn').textContent =
-    index < q.history.length - 1 ? 'Next →' : 'Back to Quiz →';
+    index < q.history.length - 1 ? 'Next Review →' : 'Back to Quiz →';
 
   document.getElementById('history-area').style.display = '';
+
+  // Update chat context to this history card
+  chatCardId = entry.card.id;
+  chatHistory = [];
 }
 
 function endReview() {
