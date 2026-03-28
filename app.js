@@ -2326,6 +2326,14 @@ A: [correct answer]`;
             ? buildVocabPrompt(cardCount, includeWrong, langName, sourceContext) + extraInstructions
             : `Generate exactly ${cardCount} quiz/flashcard cards. Extract the most important facts, concepts, definitions, and relationships.
 
+CRITICAL QUALITY RULES:
+- Every question MUST be a complete, specific sentence. NEVER write vague fragments like "What is" alone.
+- BAD: "What is" → GOOD: "What is the definition of photosynthesis?"
+- BAD: "A polite word meaning" → GOOD: "Please (a polite word used when making a request)"
+- BAD: "The verb" → GOOD: "What Japanese verb means 'to eat'?"
+- Every answer MUST be specific and complete, not a vague category description.
+- Questions should be self-contained — a student should understand exactly what is being asked without extra context.
+
 ${typeInstructions}
 
 ${wrongInstructions}${extraInstructions}
