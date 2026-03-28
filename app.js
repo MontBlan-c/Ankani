@@ -1452,13 +1452,26 @@ function showResult(correct, feedback) {
         nextTime = SRS.formatTimeUntil(actualCard.srs.nextReview);
       }
     }
-  } else {
-    // Real review — update SRS
-    const grade = correct ? 2 : 0;
+  } else if (correct) {
+    // Real review, correct — update SRS now (card is leaving the queue)
+    // If the card was answered wrong before in this session, use Hard (1) instead of Good (2)
+    const wasWrongBefore = q.history && q.history.some(h => h.card.id === card.id && !h.correct);
+    const grade = wasWrongBefore ? 1 : 2;
     if (deck) {
       const actualCard = deck.cards.find(c => c.id === card.id);
       if (actualCard) {
         SRS.reviewCard(actualCard, grade);
+        stageName = SRS.STAGE_NAMES[actualCard.srs.stage] || 'New';
+        stageClass = SRS.STAGE_CLASSES[actualCard.srs.stage] || 'new';
+        nextTime = SRS.formatTimeUntil(actualCard.srs.nextReview);
+      }
+    }
+  } else {
+    // Real review, wrong — DON'T update SRS yet. Card stays in queue.
+    // SRS only updates when the card is finally answered correctly.
+    if (deck) {
+      const actualCard = deck.cards.find(c => c.id === card.id);
+      if (actualCard) {
         stageName = SRS.STAGE_NAMES[actualCard.srs.stage] || 'New';
         stageClass = SRS.STAGE_CLASSES[actualCard.srs.stage] || 'new';
         nextTime = SRS.formatTimeUntil(actualCard.srs.nextReview);
