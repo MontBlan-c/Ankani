@@ -1325,6 +1325,8 @@ function showResult(correct, feedback) {
 }
 
 function nextCard() {
+  // Close chat panel when moving to next card
+  closeChatPanel();
   showQuizCard();
 }
 
@@ -1350,9 +1352,23 @@ function endReview() {
 }
 
 // --- Keyboard shortcuts ---
+function isChatOpen() {
+  return document.getElementById('ai-chat-panel').style.display !== 'none';
+}
+
 document.addEventListener('keydown', e => {
   if (state.currentView !== 'quiz') {
     if (e.key === 'Escape') closeModal();
+    return;
+  }
+
+  // When chat panel is open, don't let Enter/Space advance cards
+  if (isChatOpen()) {
+    if (e.key === 'Escape') {
+      closeChatPanel();
+      e.preventDefault();
+    }
+    // Let Enter in chat input be handled by the chat handler
     return;
   }
 
@@ -1640,6 +1656,7 @@ Reply with ONLY 3 wrong answers, one per line, nothing else. No numbering, no bu
 
 // --- AI Chat Panel ---
 let chatHistory = [];
+let chatCardId = null; // Track which card the chat is about
 
 function toggleChatPanel() {
   const panel = document.getElementById('ai-chat-panel');
@@ -1652,15 +1669,20 @@ function toggleChatPanel() {
 
 function openChatPanel() {
   const panel = document.getElementById('ai-chat-panel');
-  panel.style.display = '';
-  // Reset chat for new card context
-  chatHistory = [];
-  const messages = document.getElementById('chat-messages');
   const card = state.quiz.currentCard;
-  const greeting = card
-    ? `Ask me anything about this card! I can explain "${card.front}", give examples, mnemonics, or help you understand the answer.`
-    : 'Ask me anything! I can help you understand concepts, give examples, or explain answers.';
-  messages.innerHTML = `<div class="chat-msg chat-ai">${esc(greeting)}</div>`;
+
+  // Only reset chat if it's a different card
+  if (!card || chatCardId !== card.id) {
+    chatHistory = [];
+    chatCardId = card ? card.id : null;
+    const messages = document.getElementById('chat-messages');
+    const greeting = card
+      ? `Ask me anything about this card! I can explain "${card.front}", give examples, mnemonics, or help you understand the answer.`
+      : 'Ask me anything! I can help you understand concepts, give examples, or explain answers.';
+    messages.innerHTML = `<div class="chat-msg chat-ai">${formatFeedback(greeting)}</div>`;
+  }
+
+  panel.style.display = '';
   document.getElementById('chat-input').focus();
 }
 
@@ -1689,17 +1711,31 @@ async function sendChatMessage() {
   messages.scrollTop = messages.scrollHeight;
   btn.disabled = true;
 
-  // Build context
-  const card = state.quiz.currentCard;
+  // Build context — use the card the chat was opened for, not necessarily the current quiz card
   const q = state.quiz;
-  const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
+  let chatCard = null;
+  if (chatCardId && q.deckId) {
+    const deck = state.decks.find(d => d.id === q.deckId);
+    if (deck) chatCard = deck.cards.find(c => c.id === chatCardId);
+  }
+  if (!chatCard && chatCardId) {
+    // Search all decks for multi-deck reviews
+    for (const d of state.decks) {
+      chatCard = d.cards.find(c => c.id === chatCardId);
+      if (chatCard) break;
+    }
+  }
+  // Fallback to current card
+  if (!chatCard) chatCard = state.quiz.currentCard;
+
+  const deckId = q.multiDeck && chatCard ? (q.cardDeckMap[chatCard.id] || q.deckId) : q.deckId;
   const deck = state.decks.find(d => d.id === deckId);
   const deckLang = deck ? (deck.language || '') : '';
   const langName = deckLang ? (LANG_NAMES[deckLang] || deckLang) : '';
 
   let cardContext = '';
-  if (card) {
-    cardContext = `The student is studying a flashcard:\nQuestion: ${card.front}\nCorrect answer: ${card.back}`;
+  if (chatCard) {
+    cardContext = `The student is studying a flashcard:\nQuestion: ${chatCard.front}\nCorrect answer: ${chatCard.back}`;
     if (langName) cardContext += `\nLanguage: ${langName}`;
   }
 
