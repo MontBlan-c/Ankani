@@ -243,6 +243,15 @@
                     <option value="both">Both</option>
                   </select>
                 </div>
+                <div class="ai-gen-option">
+                  <label>Grading</label>
+                  <select id="ai-grading-mode">
+                    <option value="deck" selected>Settings Default</option>
+                    <option value="exact">Exact Match</option>
+                    <option value="ai">AI Graded</option>
+                    <option value="auto">AI Decides</option>
+                  </select>
+                </div>
               </div>
               <button class="btn btn-primary ai-gen-btn" id="ai-gen-btn" onclick="aiGenerateCards()">
                 <span class="ai-sparkle">&#10024;</span> Generate Cards

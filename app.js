@@ -593,7 +593,7 @@ function initCreateForm(deckId) {
   const container = document.getElementById('card-rows');
   container.innerHTML = '';
   if (deck && deck.cards.length > 0) {
-    deck.cards.forEach((card, i) => addCardRow(card.front, card.back, card.wrongAnswers || [], card.quizMode || 'deck'));
+    deck.cards.forEach((card, i) => addCardRow(card.front, card.back, card.wrongAnswers || [], card.quizMode || 'deck', card.grading || 'deck'));
   } else {
     addCardRow();
     addCardRow();
@@ -621,7 +621,7 @@ function setQuizMode(mode) {
   });
 }
 
-function addCardRow(front = '', back = '', wrongAnswers = [], cardMode = 'deck') {
+function addCardRow(front = '', back = '', wrongAnswers = [], cardMode = 'deck', grading = 'deck') {
   const container = document.getElementById('card-rows');
   const num = container.children.length + 1;
   const row = document.createElement('div');
@@ -639,6 +639,12 @@ function addCardRow(front = '', back = '', wrongAnswers = [], cardMode = 'deck')
           <button class="card-mode-btn ${cardMode === 'deck' ? 'active' : ''}" data-cardmode="deck" onclick="setCardMode(this)">Deck Default</button>
           <button class="card-mode-btn ${cardMode === 'mcq' ? 'active' : ''}" data-cardmode="mcq" onclick="setCardMode(this)">MCQ</button>
           <button class="card-mode-btn ${cardMode === 'free' ? 'active' : ''}" data-cardmode="free" onclick="setCardMode(this)">Free</button>
+        </div>
+        <div class="card-grading-toggle">
+          <span class="card-option-label">Grading:</span>
+          <button class="card-grade-btn ${grading === 'deck' ? 'active' : ''}" data-cardgrading="deck" onclick="setCardGrading(this)">Settings Default</button>
+          <button class="card-grade-btn ${grading === 'exact' ? 'active' : ''}" data-cardgrading="exact" onclick="setCardGrading(this)">Exact</button>
+          <button class="card-grade-btn ${grading === 'ai' ? 'active' : ''}" data-cardgrading="ai" onclick="setCardGrading(this)">AI Graded</button>
         </div>
         <div class="card-row-wrong" ${cardMode === 'free' ? 'style="display:none"' : ''}>
           <button class="btn-add-wrong" onclick="addWrongAnswer(this)" title="Add a wrong answer choice">+ Wrong Answer</button>
@@ -659,6 +665,12 @@ function addCardRow(front = '', back = '', wrongAnswers = [], cardMode = 'deck')
       addCardRow();
     }
   });
+}
+
+function setCardGrading(btn) {
+  const row = btn.closest('.card-row');
+  row.querySelectorAll('.card-grade-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
 }
 
 function setCardMode(btn) {
@@ -742,8 +754,10 @@ function saveDeck() {
     const wrongAnswers = Array.from(wrongInputs).map(i => i.value.trim()).filter(Boolean);
     const activeMode = row.querySelector('.card-mode-btn.active');
     const cardMode = activeMode ? activeMode.dataset.cardmode : 'deck';
+    const activeGrading = row.querySelector('.card-grade-btn.active');
+    const grading = activeGrading ? activeGrading.dataset.cardgrading : 'deck';
     if (front && back) {
-      cards.push({ front, back, wrongAnswers, quizMode: cardMode });
+      cards.push({ front, back, wrongAnswers, quizMode: cardMode, grading });
     }
   });
 
@@ -765,9 +779,10 @@ function saveDeck() {
           const existing = existingMap.get(key);
           existing.wrongAnswers = c.wrongAnswers || [];
           existing.quizMode = c.quizMode || 'deck';
+          existing.grading = c.grading || 'deck';
           return existing;
         }
-        return { id: genId(), front: c.front, back: c.back, wrongAnswers: c.wrongAnswers || [], quizMode: c.quizMode || 'deck', srs: SRS.newCardData() };
+        return { id: genId(), front: c.front, back: c.back, wrongAnswers: c.wrongAnswers || [], quizMode: c.quizMode || 'deck', grading: c.grading || 'deck', srs: SRS.newCardData() };
       });
     }
   } else {
@@ -785,6 +800,7 @@ function saveDeck() {
         back: c.back,
         wrongAnswers: c.wrongAnswers || [],
         quizMode: c.quizMode || 'deck',
+        grading: c.grading || 'deck',
         srs: SRS.newCardData(),
       })),
       createdAt: Date.now(),
@@ -978,7 +994,8 @@ function showQuizCard() {
   } else {
     document.getElementById('mcq-area').style.display = 'none';
     document.getElementById('free-area').style.display = '';
-    const isAI = getGradingMode() === 'ai' && getApiKey();
+    const cardGrading = card.grading && card.grading !== 'deck' ? card.grading : getGradingMode();
+    const isAI = cardGrading === 'ai' && getApiKey();
     let typeLabel = isAI ? 'Type Your Answer (AI Graded)' : 'Type Your Answer';
     const input = document.getElementById('free-input');
     input.value = '';
@@ -1114,17 +1131,20 @@ async function checkFreeAnswer() {
   const userAnswer = input.value.trim();
   const correctAnswer = card.back.trim();
 
-  const gradingMode = getGradingMode();
+  const globalGrading = getGradingMode();
   const apiKey = getApiKey();
   const q = state.quiz;
   const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
   const deck = state.decks.find(d => d.id === deckId);
   const deckLang = deck ? (deck.language || '') : '';
 
+  // Per-card grading override
+  const cardGrading = card.grading && card.grading !== 'deck' ? card.grading : globalGrading;
+
   let correct;
   let feedback = '';
 
-  if (gradingMode === 'ai' && apiKey) {
+  if (cardGrading === 'ai' && apiKey) {
     // AI grading
     btn.textContent = 'Grading...';
     btn.disabled = true;
@@ -1879,12 +1899,24 @@ ${sourceContext}`
       throw new Error('Could not parse any cards from AI response');
     }
 
-    // Determine card mode to set per card
+    // Determine card mode and grading to set per card
     const perCardMode = cardMode === 'both' ? 'deck' : cardMode;
+    const gradingSelect = document.getElementById('ai-grading-mode').value;
 
     // Add cards to the form
     cards.forEach(card => {
-      addCardRow(card.front, card.back, card.wrongAnswers || [], perCardMode);
+      let cardGrading = gradingSelect;
+      if (gradingSelect === 'auto') {
+        // AI decides: use AI grading for free response / conceptual, exact for MCQ / factual
+        if (perCardMode === 'free' || questionType === 'conceptual' || questionType === 'fill-blank') {
+          cardGrading = 'ai';
+        } else if (perCardMode === 'mcq') {
+          cardGrading = 'deck'; // MCQ doesn't need grading mode
+        } else {
+          cardGrading = 'ai';
+        }
+      }
+      addCardRow(card.front, card.back, card.wrongAnswers || [], perCardMode, cardGrading);
     });
 
     // Clear and close

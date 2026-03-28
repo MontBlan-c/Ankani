@@ -865,6 +865,37 @@ input[type="text"]:focus, textarea:focus {
   color: var(--accent);
 }
 
+.card-grading-toggle {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.card-option-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.card-grade-btn {
+  padding: 3px 8px;
+  background: var(--bg-input);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.card-grade-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text-dim); }
+.card-grade-btn.active {
+  background: rgba(155,89,182,0.15);
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
 .card-row-wrong {
   padding-left: 0;
 }
