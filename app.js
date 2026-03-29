@@ -760,6 +760,7 @@ function initCreateForm(deckId) {
   langSelect.value = deck ? (deck.language || '') : '';
   document.getElementById('deck-learning-lang').checked = deck ? (deck.learningLang !== false) : true;
   document.getElementById('deck-romanized').checked = deck ? (deck.romanized || false) : false;
+  document.getElementById('deck-auto-audio').checked = deck ? (deck.autoAudio !== false) : true;
   updateLanguageOptions();
   langSelect.addEventListener('change', updateLanguageOptions);
 
@@ -933,6 +934,7 @@ function saveDeck() {
   const language = document.getElementById('deck-language').value;
   const learningLang = language ? document.getElementById('deck-learning-lang').checked : false;
   const romanized = language ? document.getElementById('deck-romanized').checked : false;
+  const autoAudio = language ? document.getElementById('deck-auto-audio').checked : false;
   const rows = document.querySelectorAll('.card-row');
   const cards = [];
   rows.forEach(row => {
@@ -962,6 +964,7 @@ function saveDeck() {
       deck.language = language;
       deck.learningLang = learningLang;
       deck.romanized = romanized;
+      deck.autoAudio = autoAudio;
 
       // Merge cards: keep existing SRS data for matching front/back, add new ones
       const existingMap = new Map(deck.cards.map(c => [c.front + '|||' + c.back, c]));
@@ -989,6 +992,7 @@ function saveDeck() {
       language: language,
       learningLang: learningLang,
       romanized: romanized,
+      autoAudio: autoAudio,
       cards: cards.map(c => ({
         id: genId(),
         front: c.front,
@@ -1087,7 +1091,7 @@ function showCardInfo(cardId) {
     </div>
     <div class="modal-row">
       <span class="modal-row-label">Back</span>
-      <span class="modal-row-value">${esc(card.back)}</span>
+      <span class="modal-row-value">${esc(card.back)}${(card.audio || (deck && deck.autoAudio && deck.language)) ? ` <button class="btn-audio-play" onclick="event.stopPropagation(); speakCardInModal()" title="Play pronunciation">&#128264;</button>` : ''}</span>
     </div>
     <div class="modal-row">
       <span class="modal-row-label">SRS Stage</span>
@@ -1118,6 +1122,19 @@ function showCardInfo(cardId) {
 
 function closeModal() {
   document.getElementById('card-modal').style.display = 'none';
+}
+
+function speakCardInModal() {
+  const deck = state.decks.find(d => d.id === state.currentDeckId);
+  if (!deck) return;
+  // Find the card that's currently shown in the modal
+  const modalBody = document.getElementById('modal-body');
+  const backEl = modalBody.querySelector('.modal-row:nth-child(2) .modal-row-value');
+  if (!backEl) return;
+  const text = backEl.textContent.trim();
+  if (deck.language) {
+    speakText(text, deck.language);
+  }
 }
 
 // --- Quiz / Review ---
@@ -2212,6 +2229,32 @@ Reply with ONLY 3 wrong answers, one per line, nothing else. No numbering, no bu
   }
 }
 
+// --- Text-to-Speech (Auto-pronunciation) ---
+const LANG_SPEECH_CODES = {
+  en: 'en-US', ja: 'ja-JP', ko: 'ko-KR', zh: 'zh-CN',
+  es: 'es-ES', fr: 'fr-FR', de: 'de-DE', pt: 'pt-BR', it: 'it-IT',
+  ar: 'ar-SA', hi: 'hi-IN', ru: 'ru-RU', th: 'th-TH', he: 'he-IL', el: 'el-GR',
+};
+
+function speakText(text, langCode) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel(); // Stop any current speech
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = LANG_SPEECH_CODES[langCode] || langCode || 'en-US';
+  utterance.rate = 0.85;
+  // Try to find a voice for this language
+  const voices = speechSynthesis.getVoices();
+  const match = voices.find(v => v.lang.startsWith(langCode)) || voices.find(v => v.lang.startsWith(utterance.lang));
+  if (match) utterance.voice = match;
+  speechSynthesis.speak(utterance);
+}
+
+// Preload voices (some browsers load them async)
+if ('speechSynthesis' in window) {
+  speechSynthesis.getVoices();
+  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+}
+
 // --- Audio Functions ---
 function uploadCardAudio(btn) {
   const row = btn.closest('.card-row');
@@ -2375,30 +2418,46 @@ Use 1-based indices. Only match files you're confident about. Omit uncertain mat
 // Quiz audio playback
 function playQuizAudio() {
   const audioEl = document.getElementById('quiz-audio');
-  if (audioEl.src) {
+  if (audioEl.src && audioEl.src !== window.location.href) {
     audioEl.currentTime = 0;
     audioEl.play().catch(() => {});
+  } else if (state.quiz.pendingTTS) {
+    speakText(state.quiz.pendingTTS.text, state.quiz.pendingTTS.lang);
   }
 }
 
 function setupQuizAudio(card, deck, afterAnswer) {
   const audioBtn = document.getElementById('quiz-audio-btn');
   const audioEl = document.getElementById('quiz-audio');
+  const isTranslation = deck && deck.learningLang;
+  const hasFileAudio = !!card.audio;
+  const hasTTS = deck && deck.autoAudio && deck.language;
+  const hasAnyAudio = hasFileAudio || hasTTS;
 
-  if (!card.audio) {
+  if (!hasAnyAudio) {
     audioBtn.style.display = 'none';
     audioEl.src = '';
     state.quiz.pendingAudio = false;
+    state.quiz.pendingTTS = null;
     return;
   }
 
-  audioEl.src = card.audio;
-  const isTranslation = deck && deck.learningLang;
+  // Store what to play
+  if (hasFileAudio) {
+    audioEl.src = card.audio;
+    state.quiz.pendingTTS = null;
+  } else {
+    audioEl.src = '';
+    state.quiz.pendingTTS = { text: card.back, lang: deck.language };
+  }
 
   if (afterAnswer || !isTranslation) {
-    // Show audio button (recognition direction or after answering)
     audioBtn.style.display = '';
-    audioEl.play().catch(() => {});
+    if (hasFileAudio) {
+      audioEl.play().catch(() => {});
+    } else if (hasTTS) {
+      speakText(card.back, deck.language);
+    }
     state.quiz.pendingAudio = false;
   } else {
     // Translation direction — hide until answered
