@@ -963,9 +963,13 @@ input[type="text"]:focus, textarea:focus {
   transition: var(--transition);
   z-index: 2;
 }
-.quiz-audio-btn:hover {
+.quiz-audio-btn:hover:not(.audio-pending) {
   background: rgba(0,170,255,0.25);
   transform: scale(1.1);
+}
+.quiz-audio-btn.audio-pending {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .card-row-wrong {

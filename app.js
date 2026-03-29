@@ -2236,39 +2236,52 @@ const LANG_SPEECH_CODES = {
   ar: 'ar-SA', hi: 'hi-IN', ru: 'ru-RU', th: 'th-TH', he: 'he-IL', el: 'el-GR',
 };
 
+let ttsVoicesLoaded = false;
+let ttsVoicesCache = [];
+
+function loadVoices() {
+  if (!('speechSynthesis' in window)) return;
+  ttsVoicesCache = speechSynthesis.getVoices();
+  if (ttsVoicesCache.length > 0) ttsVoicesLoaded = true;
+}
+
+// Preload voices
+if ('speechSynthesis' in window) {
+  loadVoices();
+  if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = loadVoices;
+  }
+  // Some browsers need a timeout
+  setTimeout(loadVoices, 500);
+  setTimeout(loadVoices, 2000);
+}
+
 function speakText(text, langCode) {
   if (!('speechSynthesis' in window) || !text) return;
+
+  // Chrome bug: speechSynthesis can get stuck. Cancel + small delay fixes it.
   speechSynthesis.cancel();
 
-  function doSpeak() {
+  setTimeout(() => {
     const utterance = new SpeechSynthesisUtterance(text);
     const speechCode = LANG_SPEECH_CODES[langCode] || langCode || 'en-US';
     utterance.lang = speechCode;
     utterance.rate = 0.85;
-    const voices = speechSynthesis.getVoices();
+    utterance.volume = 1;
+
+    // Try to find the best voice
+    if (!ttsVoicesLoaded) loadVoices();
+    const voices = ttsVoicesCache.length > 0 ? ttsVoicesCache : speechSynthesis.getVoices();
     if (voices.length > 0) {
+      const langPrefix = speechCode.split('-')[0];
       const match = voices.find(v => v.lang === speechCode)
-        || voices.find(v => v.lang.startsWith(langCode))
-        || voices.find(v => v.lang.startsWith(speechCode.split('-')[0]));
+        || voices.find(v => v.lang.startsWith(langPrefix + '-'))
+        || voices.find(v => v.lang.startsWith(langPrefix));
       if (match) utterance.voice = match;
     }
+
     speechSynthesis.speak(utterance);
-  }
-
-  // Voices may not be loaded yet — retry after a short delay
-  if (speechSynthesis.getVoices().length === 0) {
-    setTimeout(doSpeak, 200);
-  } else {
-    doSpeak();
-  }
-}
-
-// Preload voices (some browsers load them async)
-if ('speechSynthesis' in window) {
-  speechSynthesis.getVoices();
-  if (speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
-  }
+  }, 50);
 }
 
 // --- Audio Functions ---
@@ -2433,12 +2446,29 @@ Use 1-based indices. Only match files you're confident about. Omit uncertain mat
 
 // Quiz audio playback
 function playQuizAudio() {
+  // Don't play if pending (translation direction, not answered yet)
+  if (state.quiz.pendingAudio) return;
+  // Try file audio first
   const audioEl = document.getElementById('quiz-audio');
   if (audioEl.src && audioEl.src !== window.location.href) {
     audioEl.currentTime = 0;
     audioEl.play().catch(() => {});
-  } else if (state.quiz.pendingTTS) {
+    return;
+  }
+  // Try TTS
+  if (state.quiz.pendingTTS) {
     speakText(state.quiz.pendingTTS.text, state.quiz.pendingTTS.lang);
+    return;
+  }
+  // Fallback: try to speak the current card's back text
+  const q = state.quiz;
+  const card = q.currentCard;
+  if (card) {
+    const deckId = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
+    const deck = state.decks.find(d => d.id === deckId);
+    if (deck && deck.language) {
+      speakText(card.back, deck.language);
+    }
   }
 }
 
@@ -2470,7 +2500,10 @@ function setupQuizAudio(card, deck, afterAnswer) {
   }
 
   if (afterAnswer || !isTranslation) {
+    // Show button and auto-play
     audioBtn.style.display = '';
+    audioBtn.title = 'Play pronunciation';
+    audioBtn.classList.remove('audio-pending');
     if (hasFileAudio) {
       audioEl.play().catch(() => {});
     } else if (hasTTS) {
@@ -2478,8 +2511,10 @@ function setupQuizAudio(card, deck, afterAnswer) {
     }
     state.quiz.pendingAudio = false;
   } else {
-    // Translation direction — hide until answered
-    audioBtn.style.display = 'none';
+    // Translation direction before answering — show button but greyed out
+    audioBtn.style.display = '';
+    audioBtn.title = 'Pronunciation (available after answering)';
+    audioBtn.classList.add('audio-pending');
     state.quiz.pendingAudio = true;
   }
 }
