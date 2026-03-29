@@ -1691,7 +1691,7 @@ function showResult(correct, feedback) {
   document.getElementById('quiz-remaining').textContent = `${q.queue.length} remaining`;
 
   // Reveal audio after answering (for translation-direction cards)
-  if (q.pendingAudio && card.audio) {
+  if (q.pendingAudio) {
     const deckId2 = q.multiDeck ? q.cardDeckMap[card.id] : q.deckId;
     const deck2 = state.decks.find(d => d.id === deckId2);
     setupQuizAudio(card, deck2, true);
@@ -2237,22 +2237,38 @@ const LANG_SPEECH_CODES = {
 };
 
 function speakText(text, langCode) {
-  if (!('speechSynthesis' in window)) return;
-  speechSynthesis.cancel(); // Stop any current speech
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = LANG_SPEECH_CODES[langCode] || langCode || 'en-US';
-  utterance.rate = 0.85;
-  // Try to find a voice for this language
-  const voices = speechSynthesis.getVoices();
-  const match = voices.find(v => v.lang.startsWith(langCode)) || voices.find(v => v.lang.startsWith(utterance.lang));
-  if (match) utterance.voice = match;
-  speechSynthesis.speak(utterance);
+  if (!('speechSynthesis' in window) || !text) return;
+  speechSynthesis.cancel();
+
+  function doSpeak() {
+    const utterance = new SpeechSynthesisUtterance(text);
+    const speechCode = LANG_SPEECH_CODES[langCode] || langCode || 'en-US';
+    utterance.lang = speechCode;
+    utterance.rate = 0.85;
+    const voices = speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      const match = voices.find(v => v.lang === speechCode)
+        || voices.find(v => v.lang.startsWith(langCode))
+        || voices.find(v => v.lang.startsWith(speechCode.split('-')[0]));
+      if (match) utterance.voice = match;
+    }
+    speechSynthesis.speak(utterance);
+  }
+
+  // Voices may not be loaded yet — retry after a short delay
+  if (speechSynthesis.getVoices().length === 0) {
+    setTimeout(doSpeak, 200);
+  } else {
+    doSpeak();
+  }
 }
 
 // Preload voices (some browsers load them async)
 if ('speechSynthesis' in window) {
   speechSynthesis.getVoices();
-  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+  if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+  }
 }
 
 // --- Audio Functions ---
@@ -2431,7 +2447,9 @@ function setupQuizAudio(card, deck, afterAnswer) {
   const audioEl = document.getElementById('quiz-audio');
   const isTranslation = deck && deck.learningLang;
   const hasFileAudio = !!card.audio;
-  const hasTTS = deck && deck.autoAudio && deck.language;
+  // Default autoAudio to true for language decks (for decks created before this setting existed)
+  const deckAutoAudio = deck && deck.language && (deck.autoAudio !== false);
+  const hasTTS = deckAutoAudio && ('speechSynthesis' in window);
   const hasAnyAudio = hasFileAudio || hasTTS;
 
   if (!hasAnyAudio) {
