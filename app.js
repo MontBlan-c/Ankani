@@ -2229,59 +2229,19 @@ Reply with ONLY 3 wrong answers, one per line, nothing else. No numbering, no bu
   }
 }
 
-// --- Text-to-Speech (Auto-pronunciation) ---
-const LANG_SPEECH_CODES = {
-  en: 'en-US', ja: 'ja-JP', ko: 'ko-KR', zh: 'zh-CN',
-  es: 'es-ES', fr: 'fr-FR', de: 'de-DE', pt: 'pt-BR', it: 'it-IT',
-  ar: 'ar-SA', hi: 'hi-IN', ru: 'ru-RU', th: 'th-TH', he: 'he-IL', el: 'el-GR',
-};
+// --- Pronunciation (Forvo) ---
 
 let ttsVoicesLoaded = false;
 let ttsVoicesCache = [];
 
-function loadVoices() {
-  if (!('speechSynthesis' in window)) return;
-  ttsVoicesCache = speechSynthesis.getVoices();
-  if (ttsVoicesCache.length > 0) ttsVoicesLoaded = true;
-}
-
-// Preload voices
-if ('speechSynthesis' in window) {
-  loadVoices();
-  if (speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = loadVoices;
-  }
-  // Some browsers need a timeout
-  setTimeout(loadVoices, 500);
-  setTimeout(loadVoices, 2000);
-}
-
+// TTS not available in this environment — use Forvo for human pronunciation
 function speakText(text, langCode) {
-  if (!('speechSynthesis' in window) || !text) return;
-
-  // Chrome bug: speechSynthesis can get stuck. Cancel + small delay fixes it.
-  speechSynthesis.cancel();
-
-  setTimeout(() => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    const speechCode = LANG_SPEECH_CODES[langCode] || langCode || 'en-US';
-    utterance.lang = speechCode;
-    utterance.rate = 0.85;
-    utterance.volume = 1;
-
-    // Try to find the best voice
-    if (!ttsVoicesLoaded) loadVoices();
-    const voices = ttsVoicesCache.length > 0 ? ttsVoicesCache : speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      const langPrefix = speechCode.split('-')[0];
-      const match = voices.find(v => v.lang === speechCode)
-        || voices.find(v => v.lang.startsWith(langPrefix + '-'))
-        || voices.find(v => v.lang.startsWith(langPrefix));
-      if (match) utterance.voice = match;
-    }
-
-    speechSynthesis.speak(utterance);
-  }, 50);
+  // Open Forvo pronunciation page for the word
+  if (text && langCode) {
+    const forvoLang = { ja: 'ja', zh: 'zh', ko: 'ko', es: 'es', fr: 'fr', de: 'de', pt: 'pt', it: 'it', ar: 'ar', hi: 'hi', ru: 'ru', th: 'th', he: 'he', el: 'el', en: 'en' }[langCode] || langCode;
+    const url = `https://forvo.com/search/${encodeURIComponent(text)}/${forvoLang}/`;
+    window.open(url, 'forvo-pronunciation', 'width=600,height=500,scrollbars=yes');
+  }
 }
 
 // --- Audio Functions ---
@@ -2477,10 +2437,8 @@ function setupQuizAudio(card, deck, afterAnswer) {
   const audioEl = document.getElementById('quiz-audio');
   const isTranslation = deck && deck.learningLang;
   const hasFileAudio = !!card.audio;
-  // Default autoAudio to true for language decks (for decks created before this setting existed)
-  const deckAutoAudio = deck && deck.language && (deck.autoAudio !== false);
-  const hasTTS = deckAutoAudio && ('speechSynthesis' in window);
-  const hasAnyAudio = hasFileAudio || hasTTS;
+  const hasPronunciation = deck && deck.language && (deck.autoAudio !== false);
+  const hasAnyAudio = hasFileAudio || hasPronunciation;
 
   if (!hasAnyAudio) {
     audioBtn.style.display = 'none';
@@ -2500,18 +2458,16 @@ function setupQuizAudio(card, deck, afterAnswer) {
   }
 
   if (afterAnswer || !isTranslation) {
-    // Show button and auto-play
     audioBtn.style.display = '';
-    audioBtn.title = 'Play pronunciation';
+    audioBtn.title = hasFileAudio ? 'Play audio' : 'Hear pronunciation (Forvo)';
     audioBtn.classList.remove('audio-pending');
+    // Only auto-play file audio, not Forvo (would open popup)
     if (hasFileAudio) {
       audioEl.play().catch(() => {});
-    } else if (hasTTS) {
-      speakText(card.back, deck.language);
     }
     state.quiz.pendingAudio = false;
   } else {
-    // Translation direction before answering — show button but greyed out
+    // Translation direction before answering — show button greyed out
     audioBtn.style.display = '';
     audioBtn.title = 'Pronunciation (available after answering)';
     audioBtn.classList.add('audio-pending');
