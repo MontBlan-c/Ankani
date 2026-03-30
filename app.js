@@ -2701,16 +2701,6 @@ async function sendChatMessage() {
   chatHistory.push({ role: 'user', content: message });
 
   try {
-    const apiMessages = [
-      { role: 'user', content: `You are a friendly, encouraging tutor helping a student study. Be concise (2-4 sentences). ${cardContext}\n\nThe student asks: ${message}` },
-      ...chatHistory.slice(1) // skip first since we built it into the system-like first message
-    ];
-
-    // For multi-turn, build properly
-    const fullMessages = chatHistory.length <= 1
-      ? [{ role: 'user', content: `You are a friendly, encouraging tutor helping a student study. Be concise (2-4 sentences). ${cardContext}\n\nStudent: ${message}` }]
-      : buildChatMessages(cardContext, chatHistory);
-
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -2728,7 +2718,8 @@ async function sendChatMessage() {
     });
 
     if (!response.ok) {
-      throw new Error(`API error ${response.status}`);
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `API error ${response.status}`);
     }
 
     const data = await response.json();
@@ -2744,14 +2735,17 @@ async function sendChatMessage() {
       loadingEl.removeAttribute('id');
     }
   } catch (err) {
+    console.error('Chat error:', err);
     const loadingEl = document.getElementById(loadingId);
     if (loadingEl) {
       loadingEl.className = 'chat-msg chat-ai';
-      loadingEl.textContent = 'Sorry, something went wrong. Try again.';
+      loadingEl.textContent = `Error: ${err.message}. Try again.`;
       loadingEl.removeAttribute('id');
     }
-    // Remove failed message from history
-    chatHistory.pop();
+    // Remove failed user message from history to keep alternating order
+    if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
+      chatHistory.pop();
+    }
   }
 
   btn.disabled = false;
