@@ -2491,13 +2491,19 @@ function openDisputeModal() {
 
   if (!card) return;
   disputeCard = card;
+  state.disputeAnswered = q.answered || (q.viewingHistory && !!q.history[q.historyIndex]);
 
   // Find the deck for this card
   disputeDeckId = q.multiDeck ? (q.cardDeckMap[card.id] || q.deckId) : q.deckId;
 
+  // Determine if the answer should be visible
+  const isAnswered = q.answered || (q.viewingHistory && q.history[q.historyIndex]);
+
   document.getElementById('dispute-card-info').innerHTML = `
     <span class="dispute-q"><strong>Q:</strong> ${esc(card.front)}</span>
-    <span class="dispute-a"><strong>A:</strong> ${esc(card.back)}</span>
+    ${isAnswered
+      ? `<span class="dispute-a"><strong>A:</strong> ${esc(card.back)}</span>`
+      : `<span class="dispute-a dispute-hidden"><strong>A:</strong> Hidden (answer first to see it)</span>`}
   `;
   document.getElementById('dispute-reason').value = '';
   document.getElementById('dispute-ai-response').style.display = 'none';
@@ -2553,7 +2559,8 @@ async function submitDispute() {
         max_tokens: 300,
         messages: [{
           role: 'user',
-          content: `A student is disputing a quiz question and wants to delete it. Review their complaint and give your honest assessment. ${personality}
+          content: state.disputeAnswered
+            ? `A student is disputing a quiz question and wants to delete it. Review their complaint and give your honest assessment. ${personality}
 
 Question: ${disputeCard.front}
 Listed correct answer: ${disputeCard.back}
@@ -2566,6 +2573,14 @@ Give your honest assessment in 2-4 sentences:
 - If it's debatable, acknowledge both sides.
 
 Be honest, not just agreeable. End with a clear recommendation: "I recommend deleting this card." or "I recommend keeping this card."`
+            : `A student is disputing a quiz question BEFORE answering it and wants to delete it. Review their complaint but DO NOT reveal the answer. ${personality}
+
+Question: ${disputeCard.front}
+(The student has not seen the answer yet — do NOT reveal it in your response.)
+
+Student's complaint: ${reason}
+
+Give your honest assessment in 2-4 sentences. Address whether the question itself is problematic (poorly worded, ambiguous, unanswerable) WITHOUT telling them the answer. If the question seems fine, tell them to try answering it first. End with: "I recommend deleting this card." or "I recommend trying to answer it first."`
         }]
       })
     });

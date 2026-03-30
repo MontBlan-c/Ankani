@@ -1952,6 +1952,7 @@ input[type="text"]:focus, textarea:focus {
 }
 .dispute-card-info .dispute-q { color: var(--text); }
 .dispute-card-info .dispute-a { color: var(--text-dim); }
+.dispute-card-info .dispute-hidden { color: var(--text-muted); font-style: italic; }
 
 .dispute-actions {
   display: flex;
